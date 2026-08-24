@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.25.0">
+<meta name="desktop-app-version" content="1.26.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -248,12 +248,20 @@
   }
   .daily-log-value-input:focus{border-color:var(--blue-tag); box-shadow:0 0 0 3px rgba(47,123,246,.12);}
   .daily-log-add-row .btn-confirm{flex:0 0 auto; padding:0 18px; border-radius:10px; font-size:13.5px;}
+  .daily-log-photo-btn{
+    width:100%; margin-bottom:8px; background:#fff; border:2px dashed #c7cede; border-radius:10px;
+    padding:11px; text-align:center; color:#5c6478; font-weight:700; font-size:13px;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .daily-log-photo-preview{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;}
+  .daily-log-photo-preview img{width:52px; height:52px; object-fit:cover; border-radius:7px; border:1px solid var(--line); cursor:pointer;}
   .daily-log-list{max-height:340px; overflow-y:auto;}
-  .daily-log-row{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);}
+  .daily-log-row{display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);}
   .daily-log-row:last-child{border-bottom:none;}
   .daily-log-row .dl-date{font-weight:800; font-size:13.5px; color:var(--ink); flex:0 0 auto; width:84px;}
   .daily-log-row .dl-value{font-weight:800; font-size:15px; color:var(--ink); flex:0 0 auto;}
   .daily-log-row .dl-delta{font-size:12px; color:var(--ink-soft); flex:1;}
+  .daily-log-row .dl-thumb{width:26px; height:26px; object-fit:cover; border-radius:5px; border:1px solid var(--line); cursor:pointer; flex:0 0 auto;}
   .daily-log-row .dl-delta.positive{color:var(--gold-dark);}
   .daily-log-row .dl-edit{flex:0 0 auto; background:none; border:none; font-size:15px; padding:4px; cursor:pointer;}
   .daily-log-row .dl-del{flex:0 0 auto; background:none; border:none; color:var(--danger); font-size:16px; padding:4px; cursor:pointer;}
@@ -504,7 +512,7 @@
   body.dark-mode .menu-stat .n{color:#fff;}
   body.dark-mode .prev-field input{color:var(--ink);}
   body.dark-mode .search-input::placeholder{color:#5c6684;}
-  body.dark-mode .photo-btn, body.dark-mode .daily-log-btn{background:#141c2e; border-color:#3a4568; color:#aab2c8;}
+  body.dark-mode .photo-btn, body.dark-mode .daily-log-btn, body.dark-mode .daily-log-photo-btn{background:#141c2e; border-color:#3a4568; color:#aab2c8;}
   body.dark-mode .daily-log-row{border-color:#26304a;}
   body.dark-mode .daily-log-site{color:#8892ab;}
   body.dark-mode .daily-log-back{background:#1a2337; color:#fff;}
@@ -1020,6 +1028,8 @@
         <input type="number" inputmode="decimal" id="dailyLogValueInput" class="daily-log-value-input" placeholder="讀數">
         <button type="button" class="btn-confirm" id="dailyLogAddBtn">新增</button>
       </div>
+      <button type="button" class="daily-log-photo-btn" id="dailyLogPhotoBtn">📷 附加照片（這個日期）</button>
+      <div class="daily-log-photo-preview" id="dailyLogPhotoPreview"></div>
       <div class="daily-log-hint">💡 按 Enter 快速新增，新增後日期自動跳下一天，可連續補登；點歷史記錄的 ✏️ 可修改任何一筆舊資料</div>
     </div>
 
@@ -1600,6 +1610,40 @@
   const DAILY_LOG_KEY = "bitan_daily_logs_v1";
   let currentDailyLogSiteId = null;
   let dailyLogEditingDate = null;
+  // 每日記錄照片：已存在的紀錄直接把照片存進該筆；還沒送出的新紀錄先暫存，送出時才一起存進去
+  let dailyLogPendingPhotoDate = null;
+  let dailyLogStagedPhotos = [];
+  let dailyLogStagedDate = null;
+  async function refreshDailyLogPhotos(){
+    const dateVal = document.getElementById("dailyLogDateInput").value;
+    const logs = getDailyLogs();
+    const entry = (logs[currentDailyLogSiteId] || []).find(e=>e.date===dateVal);
+    let photos;
+    if(entry){
+      photos = entry.photos || [];
+      // 存檔只存 id，這裡要重新解析出當次執行可用的 blob URL 才能顯示縮圖
+      for(const p of photos){
+        if(!p.url) p.url = await resolvePhotoUrl(p.id);
+      }
+      dailyLogStagedPhotos = [];
+      dailyLogStagedDate = null;
+    }else{
+      if(dailyLogStagedDate !== dateVal){
+        dailyLogStagedPhotos = [];
+        dailyLogStagedDate = null;
+      }
+      photos = dailyLogStagedPhotos;
+    }
+    const previewEl = document.getElementById("dailyLogPhotoPreview");
+    previewEl.innerHTML = photos.filter(p=>p.url).map(p=>`<img src="${p.url}" data-viewphoto="${p.url}">`).join("");
+    previewEl.querySelectorAll("[data-viewphoto]").forEach(img=>{
+      img.addEventListener("click", ()=>openPhotoViewer(img.dataset.viewphoto));
+    });
+  }
+  document.getElementById("dailyLogPhotoBtn").addEventListener("click", ()=>{
+    dailyLogPendingPhotoDate = document.getElementById("dailyLogDateInput").value;
+    document.getElementById("cameraInput").click();
+  });
   function setDailyLogEditingUI(dateStr){
     dailyLogEditingDate = dateStr;
     const badge = document.getElementById("dailyLogEditingBadge");
@@ -1615,7 +1659,7 @@
   function cancelDailyLogEdit(){
     setDailyLogEditingUI(null);
     document.getElementById("dailyLogDateInput").value = dateStrOffset(0);
-    syncQuickDateUI();
+    syncQuickDateUI(); refreshDailyLogPhotos();
     const logs = getDailyLogs();
     const entries = (logs[currentDailyLogSiteId] || []).slice().sort((a,b)=>a.date.localeCompare(b.date));
     const valueInput = document.getElementById("dailyLogValueInput");
@@ -1629,7 +1673,17 @@
     catch(e){ return {}; }
   }
   function saveDailyLogs(logs){
-    localStorage.setItem(DAILY_LOG_KEY, JSON.stringify(logs));
+    // 只存照片 id 參照，不存 blob URL（blob URL 只在當次執行有效，重開程式就失效了，
+    // 照片本體存在 IndexedDB，讀取時再用 id 重新解析出當次可用的 URL）
+    const slim = {};
+    for(const siteId in logs){
+      slim[siteId] = logs[siteId].map(entry=>({
+        date: entry.date,
+        value: entry.value,
+        photos: (entry.photos||[]).map(p=>({id:p.id}))
+      }));
+    }
+    localStorage.setItem(DAILY_LOG_KEY, JSON.stringify(slim));
   }
   function dateStrOffset(daysOffset){
     const d = new Date();
@@ -1646,7 +1700,7 @@
   document.querySelectorAll("#dailyLogQuickDate button").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       document.getElementById("dailyLogDateInput").value = dateStrOffset(parseInt(btn.dataset.quickdate,10));
-      syncQuickDateUI();
+      syncQuickDateUI(); refreshDailyLogPhotos();
       const valueInput = document.getElementById("dailyLogValueInput");
       valueInput.focus();
       valueInput.select();
@@ -1658,10 +1712,12 @@
     if(!site) return;
     currentDailyLogSiteId = siteId;
     setDailyLogEditingUI(null);
+    dailyLogStagedPhotos = [];
+    dailyLogStagedDate = null;
     const meta = TYPE_META[site.type];
     document.getElementById("dailyLogSiteInfo").textContent = `${meta.icon} ${meta.label}．${site.site}｜錶:${site.meterNo||"--"}`;
     document.getElementById("dailyLogDateInput").value = dateStrOffset(0);
-    syncQuickDateUI();
+    syncQuickDateUI(); refreshDailyLogPhotos();
     const valueInput = document.getElementById("dailyLogValueInput");
     // 快速輸入：帶入最近一筆讀數當起始值並全選，通常只需微調幾碼，不用整串重打
     // （跟主畫面月結「本期」欄位同一套邏輯與樣式，只是這裡不受月份週期限制）
@@ -1674,13 +1730,21 @@
     valueInput.focus();
     valueInput.select();
   }
-  function renderDailyLogList(){
+  async function renderDailyLogList(){
     const logs = getDailyLogs();
     const entries = (logs[currentDailyLogSiteId] || []).slice().sort((a,b)=>a.date.localeCompare(b.date));
     const listEl = document.getElementById("dailyLogList");
     if(entries.length===0){
       listEl.innerHTML = `<div class="daily-log-empty">尚無每日記錄，新增第一筆吧</div>`;
       return;
+    }
+    // 存檔只存照片 id，這裡要用 id 從 IndexedDB 重新解析出當次執行可用的 blob URL 才能顯示縮圖
+    for(const entry of entries){
+      if(entry.photos && entry.photos.length){
+        for(const p of entry.photos){
+          if(!p.url) p.url = await resolvePhotoUrl(p.id);
+        }
+      }
     }
     listEl.innerHTML = entries.slice().reverse().map((entry, idxFromEnd)=>{
       const idx = entries.length - 1 - idxFromEnd;
@@ -1691,15 +1755,20 @@
         const sign = delta > 0 ? "+" : "";
         deltaHtml = `<span class="dl-delta ${delta>0?'positive':''}">較 ${prevEntry.date} ${sign}${formatNum(delta)}</span>`;
       }
+      const photosHtml = (entry.photos||[]).filter(p=>p.url).map(p=>`<img class="dl-thumb" data-viewphoto="${p.url}" src="${p.url}">`).join("");
       return `
         <div class="daily-log-row">
           <span class="dl-date">${entry.date}</span>
           <span class="dl-value">${formatNum(parseFloat(entry.value))}</span>
           ${deltaHtml}
+          ${photosHtml}
           <button type="button" class="dl-edit" data-dledit="${entry.date}" aria-label="修改這筆記錄">✏️</button>
           <button type="button" class="dl-del" data-dldelete="${entry.date}" aria-label="刪除">🗑</button>
         </div>`;
     }).join("");
+    listEl.querySelectorAll("[data-viewphoto]").forEach(img=>{
+      img.addEventListener("click", ()=>openPhotoViewer(img.dataset.viewphoto));
+    });
     listEl.querySelectorAll("[data-dledit]").forEach(btn=>{
       btn.addEventListener("click", ()=>{
         const date = btn.dataset.dledit;
@@ -1707,7 +1776,7 @@
         if(!entry) return;
         document.getElementById("dailyLogDateInput").value = date;
         document.getElementById("dailyLogValueInput").value = entry.value;
-        syncQuickDateUI();
+        syncQuickDateUI(); refreshDailyLogPhotos();
         setDailyLogEditingUI(date);
         const valueInput = document.getElementById("dailyLogValueInput");
         valueInput.focus();
@@ -1715,9 +1784,17 @@
       });
     });
     listEl.querySelectorAll("[data-dldelete]").forEach(btn=>{
-      btn.addEventListener("click", ()=>{
+      btn.addEventListener("click", async ()=>{
         const logs2 = getDailyLogs();
-        logs2[currentDailyLogSiteId] = (logs2[currentDailyLogSiteId]||[]).filter(e=>e.date!==btn.dataset.dldelete);
+        const list2 = logs2[currentDailyLogSiteId] || [];
+        const target = list2.find(e=>e.date===btn.dataset.dldelete);
+        if(target && target.photos){
+          for(const p of target.photos){
+            forgetPhotoUrl(p.id);
+            await deletePhotoBlob(p.id);
+          }
+        }
+        logs2[currentDailyLogSiteId] = list2.filter(e=>e.date!==btn.dataset.dldelete);
         saveDailyLogs(logs2);
         if(dailyLogEditingDate === btn.dataset.dldelete) cancelDailyLogEdit();
         renderDailyLogList();
@@ -1733,8 +1810,14 @@
     const logs = getDailyLogs();
     const list = logs[currentDailyLogSiteId] || (logs[currentDailyLogSiteId] = []);
     const existing = list.find(e=>e.date===dateVal);
-    if(existing) existing.value = valueVal;
-    else list.push({date:dateVal, value:valueVal});
+    if(existing){
+      existing.value = valueVal;
+    }else{
+      const photos = (dailyLogStagedDate === dateVal) ? dailyLogStagedPhotos : [];
+      list.push({date:dateVal, value:valueVal, photos});
+      dailyLogStagedPhotos = [];
+      dailyLogStagedDate = null;
+    }
     saveDailyLogs(logs);
     renderDailyLogList();
     showToast(existing ? "已更新該日期讀數" : "已新增每日記錄");
@@ -1747,7 +1830,7 @@
       document.getElementById("dailyLogDateInput").value = dateStrOffset(
         Math.round((new Date(dateVal) - new Date(dateStrOffset(0))) / 86400000) + 1
       );
-      syncQuickDateUI();
+      syncQuickDateUI(); refreshDailyLogPhotos();
       valueInput.focus();
       valueInput.select();
     }
@@ -2292,7 +2375,7 @@
     if(entry){
       document.getElementById("dailyLogDateInput").value = date;
       document.getElementById("dailyLogValueInput").value = entry.value;
-      syncQuickDateUI();
+      syncQuickDateUI(); refreshDailyLogPhotos();
       setDailyLogEditingUI(date);
       const valueInput = document.getElementById("dailyLogValueInput");
       valueInput.focus();
@@ -2830,8 +2913,40 @@
   document.getElementById("cameraInput").addEventListener("change", async e=>{
     const file = e.target.files[0];
     const targetId = currentPhotoTargetId;
+    const dailyDate = dailyLogPendingPhotoDate;
+    dailyLogPendingPhotoDate = null;
     e.target.value = "";
-    if(!file || !targetId) return;
+    if(!file) return;
+
+    if(dailyDate !== null){
+      // 每日記錄的照片：已存在的紀錄直接存進去，還沒送出的新紀錄先暫存等送出再一起存
+      showToast("照片儲存中…");
+      try{
+        const id = crypto.randomUUID();
+        await savePhotoBlob(id, file, file.type);
+        const url = await resolvePhotoUrl(id);
+        const photo = {id, url};
+        const logs = getDailyLogs();
+        const list = logs[currentDailyLogSiteId] || [];
+        const entry = list.find(en=>en.date===dailyDate);
+        if(entry){
+          if(!entry.photos) entry.photos = [];
+          entry.photos.push(photo);
+          saveDailyLogs(logs);
+          renderDailyLogList();
+        }else{
+          if(dailyLogStagedDate !== dailyDate){ dailyLogStagedPhotos = []; dailyLogStagedDate = dailyDate; }
+          dailyLogStagedPhotos.push(photo);
+        }
+        refreshDailyLogPhotos();
+        showToast("照片已附加");
+      }catch(err){
+        showToast(err.message || "照片儲存失敗");
+      }
+      return;
+    }
+
+    if(!targetId) return;
     showToast("照片儲存中…");
     try{
       const id = crypto.randomUUID();
