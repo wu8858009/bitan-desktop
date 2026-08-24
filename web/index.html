@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.7.0">
+<meta name="desktop-app-version" content="1.8.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -348,6 +348,10 @@
   }
   .toggle-switch.on{background:var(--navy-900);}
   .toggle-switch.on::after{left:21px;}
+  .digit-select{
+    flex:0 0 auto; border:1px solid var(--line); border-radius:8px; background:#fff;
+    font-weight:800; font-size:14px; color:var(--ink); padding:7px 10px; font-family:inherit;
+  }
   .menu-version{text-align:center; color:var(--ink-soft); font-size:12px; font-weight:600; padding-top:4px;}
 
   /* ===== 圖表分析 ===== */
@@ -777,6 +781,25 @@
     </div>
 
     <div class="menu-section">
+      <div class="menu-section-title">本期輸入位數設定</div>
+      <div class="menu-item">
+        <span class="mi-ic">💧</span>
+        <span class="mi-label">水表本期位數<span class="mi-sub">輸入框最多可輸入幾位數字</span></span>
+        <select class="digit-select" id="digitLimitWater"></select>
+      </div>
+      <div class="menu-item">
+        <span class="mi-ic">⚡</span>
+        <span class="mi-label">電表本期位數<span class="mi-sub">輸入框最多可輸入幾位數字</span></span>
+        <select class="digit-select" id="digitLimitElec"></select>
+      </div>
+      <div class="menu-item">
+        <span class="mi-ic">🔥</span>
+        <span class="mi-label">瓦斯表本期位數<span class="mi-sub">輸入框最多可輸入幾位數字</span></span>
+        <select class="digit-select" id="digitLimitGas"></select>
+      </div>
+    </div>
+
+    <div class="menu-section">
       <div class="menu-section-title">資料安全</div>
       <button type="button" class="menu-item danger" id="mClearMonth">
         <span class="mi-ic">🗑️</span>
@@ -866,6 +889,23 @@
     elec:{label:"電", icon:"⚡", cls:"type-elec", unit:"度"},
     gas:{label:"瓦斯", icon:"🔥", cls:"type-gas", unit:"度"}
   };
+
+  // ---- 本期輸入框位數上限（可在系統選單自訂，各類型分開設定） ----
+  const DIGIT_LIMIT_KEY = "bitan_curr_digit_limits";
+  const DEFAULT_DIGIT_LIMITS = {water:5, elec:5, gas:5};
+  function getDigitLimits(){
+    try{
+      const saved = JSON.parse(localStorage.getItem(DIGIT_LIMIT_KEY) || "{}");
+      return {...DEFAULT_DIGIT_LIMITS, ...saved};
+    }catch(e){
+      return {...DEFAULT_DIGIT_LIMITS};
+    }
+  }
+  function saveDigitLimit(type, n){
+    const limits = getDigitLimits();
+    limits[type] = n;
+    localStorage.setItem(DIGIT_LIMIT_KEY, JSON.stringify(limits));
+  }
 
   let sites = [];
   let currentFilter = "all";
@@ -1122,8 +1162,10 @@
       return;
     }
 
+    const digitLimits = getDigitLimits();
     filtered.forEach(site=>{
       const meta = TYPE_META[site.type];
+      const digitLimit = digitLimits[site.type] || 5;
       const prevVal = getPrevValue(site);
       const r = readings[site.id] || {curr:"", photos:[]};
       const currVal = r.curr;
@@ -1154,9 +1196,9 @@
             <div class="prev-field" id="prevField_${site.id}">${formatNum(prevVal)}</div>
           </div>
           <div>
-            <div class="field-label"><span>本期 (限5位)</span></div>
+            <div class="field-label"><span>本期 (限${digitLimit}位)</span></div>
             <div class="curr-field" id="currFieldWrap_${site.id}">
-              <input type="number" inputmode="decimal" maxlength="5" data-curr="${site.id}"
+              <input type="number" inputmode="decimal" maxlength="${digitLimit}" data-curr="${site.id}" data-limit="${digitLimit}"
                 value="${currVal!==undefined ? currVal : ''}" placeholder="輸入讀數">
             </div>
           </div>
@@ -1188,7 +1230,8 @@
     // bind events
     list.querySelectorAll("[data-curr]").forEach(inp=>{
       inp.addEventListener("input", ()=>{
-        if(inp.value.length>5) inp.value = inp.value.slice(0,5);
+        const limit = parseInt(inp.dataset.limit, 10) || 5;
+        if(inp.value.length>limit) inp.value = inp.value.slice(0,limit);
         const id = inp.dataset.curr;
         const readings2 = loadReadings(currentMonthKey);
         if(!readings2[id]) readings2[id] = {curr:"", photos:[]};
@@ -1667,6 +1710,29 @@
     syncDarkToggleUI();
   });
   applyDarkMode(localStorage.getItem(DARK_KEY) === "1");
+
+  // ---- 本期輸入位數設定（水/電/瓦斯各自可調） ----
+  (function initDigitLimitSelects(){
+    const selectMap = {water:"digitLimitWater", elec:"digitLimitElec", gas:"digitLimitGas"};
+    const options = [];
+    for(let n=3;n<=8;n++) options.push(`<option value="${n}">${n} 位</option>`);
+    Object.keys(selectMap).forEach(type=>{
+      document.getElementById(selectMap[type]).innerHTML = options.join("");
+    });
+    function syncDigitLimitSelects(){
+      const limits = getDigitLimits();
+      Object.keys(selectMap).forEach(type=>{
+        document.getElementById(selectMap[type]).value = limits[type];
+      });
+    }
+    Object.keys(selectMap).forEach(type=>{
+      document.getElementById(selectMap[type]).addEventListener("change", e=>{
+        saveDigitLimit(type, parseInt(e.target.value, 10));
+        render();
+      });
+    });
+    syncDigitLimitSelects();
+  })();
 
   // ---- 清除本期抄錄資料 ----
   document.getElementById("mClearMonth").addEventListener("click", ()=>{
