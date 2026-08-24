@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.16.0">
+<meta name="desktop-app-version" content="1.17.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -1595,7 +1595,7 @@
     if(!site) return;
     currentDailyLogSiteId = siteId;
     const meta = TYPE_META[site.type];
-    document.getElementById("dailyLogSiteInfo").textContent = `${meta.icon} ${meta.label}．${site.site}`;
+    document.getElementById("dailyLogSiteInfo").textContent = `${meta.icon} ${meta.label}．${site.site}｜錶:${site.meterNo||"--"}`;
     document.getElementById("dailyLogDateInput").value = dateStrOffset(0);
     syncQuickDateUI();
     const valueInput = document.getElementById("dailyLogValueInput");
@@ -1697,7 +1697,7 @@
           <span class="dn-ic">${meta.icon}</span>
           <span class="dn-info">
             <div class="dn-name">${escapeHtml(site.site)}</div>
-            <div class="dn-meta">${escapeHtml(site.group||"未分類")} ｜ ${meta.label}</div>
+            <div class="dn-meta">${escapeHtml(site.group||"未分類")} ｜ ${meta.label} ｜ 錶:${escapeHtml(site.meterNo||"--")}</div>
           </span>
           <span class="dn-count">${count} 筆記錄</span>
         </button>`;
