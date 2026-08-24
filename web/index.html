@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.14.0">
+<meta name="desktop-app-version" content="1.15.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -216,6 +216,13 @@
   /* ===== 每日記錄 ===== */
   .daily-log-sheet{max-width:440px;}
   .daily-log-site{font-size:13.5px; font-weight:700; color:var(--ink-soft); margin:-8px 0 14px;}
+  .daily-log-quickdate{display:flex; gap:6px; margin-bottom:8px;}
+  .daily-log-quickdate button{
+    flex:1; border:1px solid var(--line); background:#fbfcfe; border-radius:8px;
+    padding:7px 0; font-size:12.5px; font-weight:700; color:var(--ink-soft);
+  }
+  .daily-log-quickdate button.active{background:var(--navy-900); color:#fff; border-color:var(--navy-900);}
+  .daily-log-hint{font-size:11.5px; color:var(--ink-soft); margin:-10px 0 16px;}
   .daily-log-add-row{display:flex; gap:8px; margin-bottom:16px;}
   .daily-log-add-row input{
     border:1px solid var(--line); border-radius:10px; padding:11px 10px; font-size:14px;
@@ -481,6 +488,9 @@
   body.dark-mode .photo-btn, body.dark-mode .daily-log-btn{background:#141c2e; border-color:#3a4568; color:#aab2c8;}
   body.dark-mode .daily-log-row{border-color:#26304a;}
   body.dark-mode .daily-log-site{color:#8892ab;}
+  body.dark-mode .daily-log-quickdate button{background:#1a2337; border-color:#2a3550; color:var(--ink);}
+  body.dark-mode .daily-log-quickdate button.active{background:#fff; color:var(--navy-900); border-color:#fff;}
+  body.dark-mode .daily-log-hint{color:#8892ab;}
   body.dark-mode .daily-nav-row{background:#1a2337; border-color:#2a3550; color:var(--ink);}
   body.dark-mode .daily-nav-row .dn-count{background:#0d1526; color:#aab6d6;}
   body.dark-mode .daily-nav-hint{color:#8892ab;}
@@ -955,11 +965,17 @@
     <h2>📅 每日記錄</h2>
     <div class="daily-log-site" id="dailyLogSiteInfo"></div>
 
+    <div class="daily-log-quickdate" id="dailyLogQuickDate">
+      <button type="button" data-quickdate="0">今天</button>
+      <button type="button" data-quickdate="-1">昨天</button>
+      <button type="button" data-quickdate="-2">前天</button>
+    </div>
     <div class="daily-log-add-row">
       <input type="date" id="dailyLogDateInput">
       <input type="number" inputmode="decimal" id="dailyLogValueInput" placeholder="讀數">
       <button type="button" class="btn-confirm" id="dailyLogAddBtn">新增</button>
     </div>
+    <div class="daily-log-hint">💡 按 Enter 快速新增，新增後日期自動跳下一天，可連續補登</div>
 
     <div class="daily-log-list" id="dailyLogList"></div>
 
@@ -1541,23 +1557,46 @@
   function saveDailyLogs(logs){
     localStorage.setItem(DAILY_LOG_KEY, JSON.stringify(logs));
   }
-  function todayDateStr(){
+  function dateStrOffset(daysOffset){
     const d = new Date();
+    d.setDate(d.getDate() + (daysOffset||0));
     const pad = n=>String(n).padStart(2,"0");
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
+  function syncQuickDateUI(){
+    const val = document.getElementById("dailyLogDateInput").value;
+    document.querySelectorAll("#dailyLogQuickDate button").forEach(btn=>{
+      btn.classList.toggle("active", dateStrOffset(parseInt(btn.dataset.quickdate,10)) === val);
+    });
+  }
+  document.querySelectorAll("#dailyLogQuickDate button").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.getElementById("dailyLogDateInput").value = dateStrOffset(parseInt(btn.dataset.quickdate,10));
+      syncQuickDateUI();
+      const valueInput = document.getElementById("dailyLogValueInput");
+      valueInput.focus();
+      valueInput.select();
+    });
+  });
+  document.getElementById("dailyLogDateInput").addEventListener("change", syncQuickDateUI);
   function openDailyLogSheet(siteId){
     const site = sites.find(s=>s.id===siteId);
     if(!site) return;
     currentDailyLogSiteId = siteId;
     const meta = TYPE_META[site.type];
     document.getElementById("dailyLogSiteInfo").textContent = `${meta.icon} ${meta.label}．${site.site}`;
-    document.getElementById("dailyLogDateInput").value = todayDateStr();
+    document.getElementById("dailyLogDateInput").value = dateStrOffset(0);
+    syncQuickDateUI();
     const valueInput = document.getElementById("dailyLogValueInput");
-    valueInput.value = "";
+    // 快速輸入：帶入最近一筆讀數當起始值，通常只需微調幾碼，不用整串重打
+    const logs = getDailyLogs();
+    const entries = (logs[siteId] || []).slice().sort((a,b)=>a.date.localeCompare(b.date));
+    valueInput.value = entries.length ? entries[entries.length-1].value : "";
     valueInput.maxLength = getDigitLimits()[site.type] || 5;
     renderDailyLogList();
     document.getElementById("dailyLogOverlay").classList.add("open");
+    valueInput.focus();
+    valueInput.select();
   }
   function renderDailyLogList(){
     const logs = getDailyLogs();
@@ -1593,9 +1632,10 @@
       });
     });
   }
-  document.getElementById("dailyLogAddBtn").addEventListener("click", ()=>{
+  function submitDailyLogEntry(){
     const dateVal = document.getElementById("dailyLogDateInput").value;
-    const valueVal = document.getElementById("dailyLogValueInput").value;
+    const valueInput = document.getElementById("dailyLogValueInput");
+    const valueVal = valueInput.value;
     if(!dateVal){ showToast("請選擇日期"); return; }
     if(valueVal === "" || isNaN(parseFloat(valueVal))){ showToast("請輸入讀數"); return; }
     const logs = getDailyLogs();
@@ -1604,9 +1644,19 @@
     if(existing) existing.value = valueVal;
     else list.push({date:dateVal, value:valueVal});
     saveDailyLogs(logs);
-    document.getElementById("dailyLogValueInput").value = "";
     renderDailyLogList();
     showToast(existing ? "已更新該日期讀數" : "已新增每日記錄");
+    // 連續快速輸入：日期自動跳到下一天、游標留在讀數欄，方便一口氣補登好幾天
+    document.getElementById("dailyLogDateInput").value = dateStrOffset(
+      Math.round((new Date(dateVal) - new Date(dateStrOffset(0))) / 86400000) + 1
+    );
+    syncQuickDateUI();
+    valueInput.focus();
+    valueInput.select();
+  }
+  document.getElementById("dailyLogAddBtn").addEventListener("click", submitDailyLogEntry);
+  document.getElementById("dailyLogValueInput").addEventListener("keydown", e=>{
+    if(e.key === "Enter") submitDailyLogEntry();
   });
   document.getElementById("dailyLogCloseBtn").addEventListener("click", ()=>{
     document.getElementById("dailyLogOverlay").classList.remove("open");
