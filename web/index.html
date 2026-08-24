@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.17.0">
+<meta name="desktop-app-version" content="1.18.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -617,6 +617,21 @@
     .chart-sheet h2, .chart-sheet .sheet-actions{grid-column:1 / -1;}
     .chart-sheet h2{font-size:22px;}
     .chart-sheet .chart-canvas-wrap{min-height:320px;}
+
+    /* 每日記錄：站點清單改雙欄格線，單一站點畫面改左右雙欄（左輸入、右歷史） */
+    .daily-nav-sheet{max-width:680px; padding:28px 32px calc(28px + env(safe-area-inset-bottom));}
+    .daily-nav-list{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+    .daily-nav-row{margin-bottom:0;}
+
+    .daily-log-sheet{
+      max-width:760px; padding:28px 32px calc(28px + env(safe-area-inset-bottom));
+      display:grid; grid-template-columns:1fr 1.15fr; column-gap:28px; align-items:start;
+    }
+    .daily-log-sheet .daily-log-header,
+    .daily-log-sheet .daily-log-site,
+    .daily-log-sheet .sheet-actions{grid-column:1 / -1;}
+    .daily-log-sheet .daily-log-header h2{font-size:22px;}
+    .daily-log-sheet .daily-log-list{max-height:420px;}
   }
 
   /* --- 短螢幕高度（例如橫向手機）：讓彈出視窗可完整捲動 --- */
@@ -976,19 +991,24 @@
     </div>
     <div class="daily-log-site" id="dailyLogSiteInfo"></div>
 
-    <div class="daily-log-quickdate" id="dailyLogQuickDate">
-      <button type="button" data-quickdate="0">今天</button>
-      <button type="button" data-quickdate="-1">昨天</button>
-      <button type="button" data-quickdate="-2">前天</button>
+    <div class="daily-log-input-col">
+      <div class="daily-log-quickdate" id="dailyLogQuickDate">
+        <button type="button" data-quickdate="0">今天</button>
+        <button type="button" data-quickdate="-1">昨天</button>
+        <button type="button" data-quickdate="-2">前天</button>
+      </div>
+      <div class="daily-log-add-row">
+        <input type="date" id="dailyLogDateInput">
+        <input type="number" inputmode="decimal" id="dailyLogValueInput" placeholder="讀數">
+        <button type="button" class="btn-confirm" id="dailyLogAddBtn">新增</button>
+      </div>
+      <div class="daily-log-hint">💡 按 Enter 快速新增，新增後日期自動跳下一天，可連續補登</div>
     </div>
-    <div class="daily-log-add-row">
-      <input type="date" id="dailyLogDateInput">
-      <input type="number" inputmode="decimal" id="dailyLogValueInput" placeholder="讀數">
-      <button type="button" class="btn-confirm" id="dailyLogAddBtn">新增</button>
-    </div>
-    <div class="daily-log-hint">💡 按 Enter 快速新增，新增後日期自動跳下一天，可連續補登</div>
 
-    <div class="daily-log-list" id="dailyLogList"></div>
+    <div class="daily-log-history-col">
+      <div class="menu-section-title">歷史記錄</div>
+      <div class="daily-log-list" id="dailyLogList"></div>
+    </div>
 
     <div class="sheet-actions">
       <button class="btn-cancel" id="dailyLogCloseBtn">關閉</button>
