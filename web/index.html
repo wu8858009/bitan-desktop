@@ -7,6 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
+<meta name="desktop-app-version" content="1.2.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -562,6 +563,20 @@
   .splash-spinner{width:28px; height:28px; border-radius:50%; border:3px solid rgba(255,255,255,.25); border-top-color:var(--gold); animation:splashSpin .8s linear infinite; margin-top:6px;}
   @keyframes splashSpin{to{transform:rotate(360deg);}}
   @keyframes splashIn{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+
+  /* ===== 新版本提示橫幅 ===== */
+  .update-banner{
+    display:none; align-items:center; justify-content:center; gap:10px;
+    background:linear-gradient(90deg,var(--gold),var(--gold-dark));
+    color:#3a2900; font-weight:700; font-size:13.5px;
+    padding:10px 40px 10px 16px; cursor:pointer; position:relative; text-align:center;
+  }
+  .update-banner.show{display:flex;}
+  .update-banner-close{
+    position:absolute; right:10px; top:50%; transform:translateY(-50%);
+    background:rgba(0,0,0,.12); border:none; color:#3a2900; width:24px; height:24px;
+    border-radius:50%; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
 </style>
 </head>
 <body>
@@ -573,6 +588,11 @@
     <div class="splash-badge">企業版 PRO</div>
     <div class="splash-spinner"></div>
   </div>
+</div>
+
+<div id="updateBanner" class="update-banner">
+  <span>🆕 發現新版本 <b id="updateBannerVersion"></b>，點此前往下載</span>
+  <button type="button" class="update-banner-close" id="updateBannerClose" aria-label="關閉">✕</button>
 </div>
 
 <div class="topbar">
@@ -2260,6 +2280,57 @@
     el.classList.add("hide");
     setTimeout(()=>el.remove(), 500);
   }
+
+  // ---- 電腦版更新提示：跟 GitHub Release 比對版本，發現新版就顯示橫幅 ----
+  const DESKTOP_UPDATE_REPO = "wu8858009/bitan-desktop";
+  function parseVer(v){
+    return String(v||"").replace(/^v/i,"").split(".").map(n=>parseInt(n,10)||0);
+  }
+  function isNewerVersion(a,b){
+    for(let i=0;i<Math.max(a.length,b.length);i++){
+      const x=a[i]||0, y=b[i]||0;
+      if(x>y) return true;
+      if(x<y) return false;
+    }
+    return false;
+  }
+  function openExternalUrl(url){
+    try{
+      if(window.pywebview && window.pywebview.api && window.pywebview.api.open_url){
+        window.pywebview.api.open_url(url);
+        return;
+      }
+    }catch(e){}
+    window.open(url, "_blank");
+  }
+  function checkDesktopUpdate(){
+    const currentVersion = document.querySelector('meta[name="desktop-app-version"]').content;
+    fetch(`https://api.github.com/repos/${DESKTOP_UPDATE_REPO}/releases/latest`, {cache:"no-store"})
+      .then(r=> r.ok ? r.json() : null)
+      .then(data=>{
+        if(!data || !data.tag_name) return;
+        if(!isNewerVersion(parseVer(data.tag_name), parseVer(currentVersion))) return;
+        const dismissedKey = "bitan_update_dismissed_" + data.tag_name;
+        if(localStorage.getItem(dismissedKey)) return;
+        const banner = document.getElementById("updateBanner");
+        document.getElementById("updateBannerVersion").textContent = data.tag_name;
+        banner.dataset.url = data.html_url || `https://github.com/${DESKTOP_UPDATE_REPO}/releases/tag/${data.tag_name}`;
+        banner.dataset.tag = data.tag_name;
+        banner.classList.add("show");
+      })
+      .catch(()=>{});
+  }
+  document.getElementById("updateBanner").addEventListener("click", function(e){
+    if(e.target.id === "updateBannerClose") return;
+    if(this.dataset.url) openExternalUrl(this.dataset.url);
+  });
+  document.getElementById("updateBannerClose").addEventListener("click", function(e){
+    e.stopPropagation();
+    const banner = document.getElementById("updateBanner");
+    if(banner.dataset.tag) localStorage.setItem("bitan_update_dismissed_" + banner.dataset.tag, "1");
+    banner.classList.remove("show");
+  });
+
   async function bootApp(){
     const splashStart = Date.now();
     buildMonthOptions();
@@ -2272,6 +2343,7 @@
     }finally{
       const minShow = 550;
       setTimeout(hideSplash, Math.max(0, minShow - (Date.now() - splashStart)));
+      checkDesktopUpdate();
     }
   }
   bootApp();

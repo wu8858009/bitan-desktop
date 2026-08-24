@@ -26,7 +26,16 @@ if sys.platform == "win32":
         "--disable-gpu --disable-gpu-compositing --disable-software-rasterizer",
     )
 
+import webbrowser
+
 import webview
+
+
+class Api:
+    """提供給前端 JS 呼叫的橋接：發現新版本時，用系統預設瀏覽器開啟下載頁。"""
+
+    def open_url(self, url):
+        webbrowser.open(url)
 
 
 def base_path():
@@ -74,6 +83,7 @@ def main():
         height=height,
         min_size=(min_w, min_h),
         background_color="#0d2140",
+        js_api=Api(),
     )
     # private_mode=False + storage_path：讓 localStorage / IndexedDB（照片）
     # 實際寫入本機 data 資料夾並長期保存，而不是每次啟動都清空的無痕模式。
