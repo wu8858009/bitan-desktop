@@ -26,16 +26,82 @@ if sys.platform == "win32":
         "--disable-gpu --disable-gpu-compositing --disable-software-rasterizer",
     )
 
+import subprocess
+import tempfile
+import urllib.request
 import webbrowser
 
 import webview
 
 
 class Api:
-    """提供給前端 JS 呼叫的橋接：發現新版本時，用系統預設瀏覽器開啟下載頁。"""
+    """提供給前端 JS 呼叫的橋接：開啟外部連結、下載並套用新版 exe。"""
 
     def open_url(self, url):
         webbrowser.open(url)
+
+    def download_and_apply_update(self, download_url, target_version):
+        """下載新版 exe 並排入更新：寫一個批次檔等本程式結束後覆蓋 exe 本體再重啟。
+        只動 exe 檔案本身，絕不觸碰 data/ 資料夾。
+
+        批次檔是在本程式結束後、脫離本程式監控下才實際執行覆蓋動作，這裡回傳的
+        {"ok": True} 只代表「下載成功、更新已排程」，不代表覆蓋一定會成功
+        （例如防毒軟體攔截、磁碟權限問題）。真正是否成功，靠 check_pending_update()
+        在下次啟動時比對版本號來確認，交給前端顯示結果，避免謊報已更新成功。"""
+        if not getattr(sys, "frozen", False):
+            return {"ok": False, "error": "開發模式無法自動更新，請先打包成 exe 再測試"}
+        try:
+            exe_path = sys.executable
+            tmp_exe = os.path.join(tempfile.gettempdir(), "bitan_update_download.exe")
+            urllib.request.urlretrieve(download_url, tmp_exe)
+
+            if os.path.getsize(tmp_exe) < 1024 * 1024:
+                os.remove(tmp_exe)
+                return {"ok": False, "error": "下載的檔案異常，請稍後再試"}
+
+            marker_path = os.path.join(tempfile.gettempdir(), "bitan_update_marker.txt")
+            with open(marker_path, "w", encoding="utf-8") as f:
+                f.write(target_version)
+
+            pid = os.getpid()
+            bat_path = os.path.join(tempfile.gettempdir(), "bitan_apply_update.bat")
+            script = (
+                "@echo off\r\n"
+                ":wait\r\n"
+                f'tasklist /fi "PID eq {pid}" 2>nul | find "{pid}" >nul\r\n'
+                "if not errorlevel 1 (\r\n"
+                "  timeout /t 1 /nobreak >nul\r\n"
+                "  goto wait\r\n"
+                ")\r\n"
+                f'move /y "{tmp_exe}" "{exe_path}" >nul\r\n'
+                f'start "" "{exe_path}"\r\n'
+                'del "%~f0"\r\n'
+            )
+            with open(bat_path, "w", encoding="mbcs") as f:
+                f.write(script)
+
+            subprocess.Popen(["cmd", "/c", bat_path], creationflags=subprocess.CREATE_NO_WINDOW)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def check_pending_update(self):
+        """啟動時呼叫：檢查上次是否有排程過更新，回報版本號有沒有真的變成新版。"""
+        marker_path = os.path.join(tempfile.gettempdir(), "bitan_update_marker.txt")
+        if not os.path.exists(marker_path):
+            return {"pending": False}
+        try:
+            with open(marker_path, "r", encoding="utf-8") as f:
+                target = f.read().strip()
+        finally:
+            try:
+                os.remove(marker_path)
+            except Exception:
+                pass
+        return {"pending": True, "target": target}
+
+    def quit_app(self):
+        os._exit(0)
 
 
 def base_path():
