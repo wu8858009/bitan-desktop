@@ -26,6 +26,7 @@ if sys.platform == "win32":
         "--disable-gpu --disable-gpu-compositing --disable-software-rasterizer",
     )
 
+import shutil
 import subprocess
 import tempfile
 import urllib.request
@@ -42,7 +43,9 @@ class Api:
 
     def download_and_apply_update(self, download_url, target_version):
         """下載新版 exe 並排入更新：寫一個批次檔等本程式結束後覆蓋 exe 本體再重啟。
-        只動 exe 檔案本身，絕不觸碰 data/ 資料夾。
+        只動 exe 檔案本身，絕不觸碰 data/ 資料夾；下載成功後還會多備份一份
+        data/ 到同層的 data_backup_before_update，就算真的出了什麼意外，
+        資料也救得回來。
 
         批次檔是在本程式結束後、脫離本程式監控下才實際執行覆蓋動作，這裡回傳的
         {"ok": True} 只代表「下載成功、更新已排程」，不代表覆蓋一定會成功
@@ -58,6 +61,16 @@ class Api:
             if os.path.getsize(tmp_exe) < 1024 * 1024:
                 os.remove(tmp_exe)
                 return {"ok": False, "error": "下載的檔案異常，請稍後再試"}
+
+            data_dir = os.path.join(os.path.dirname(exe_path), "data")
+            if os.path.isdir(data_dir):
+                backup_dir = os.path.join(os.path.dirname(exe_path), "data_backup_before_update")
+                try:
+                    if os.path.isdir(backup_dir):
+                        shutil.rmtree(backup_dir, ignore_errors=True)
+                    shutil.copytree(data_dir, backup_dir)
+                except Exception:
+                    pass  # 備份是多一層保險，備份失敗也不該擋下正常更新
 
             marker_path = os.path.join(tempfile.gettempdir(), "bitan_update_marker.txt")
             with open(marker_path, "w", encoding="utf-8") as f:
