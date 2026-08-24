@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.15.0">
+<meta name="desktop-app-version" content="1.16.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -215,6 +215,13 @@
 
   /* ===== 每日記錄 ===== */
   .daily-log-sheet{max-width:440px;}
+  .daily-log-header{display:flex; align-items:center; gap:10px; margin-bottom:16px;}
+  .daily-log-header h2{margin:0;}
+  .daily-log-back{
+    flex:0 0 auto; width:32px; height:32px; border-radius:50%; border:none;
+    background:#f1f3f7; color:var(--navy-900); font-size:18px; font-weight:800; line-height:1;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
   .daily-log-site{font-size:13.5px; font-weight:700; color:var(--ink-soft); margin:-8px 0 14px;}
   .daily-log-quickdate{display:flex; gap:6px; margin-bottom:8px;}
   .daily-log-quickdate button{
@@ -488,6 +495,7 @@
   body.dark-mode .photo-btn, body.dark-mode .daily-log-btn{background:#141c2e; border-color:#3a4568; color:#aab2c8;}
   body.dark-mode .daily-log-row{border-color:#26304a;}
   body.dark-mode .daily-log-site{color:#8892ab;}
+  body.dark-mode .daily-log-back{background:#1a2337; color:#fff;}
   body.dark-mode .daily-log-quickdate button{background:#1a2337; border-color:#2a3550; color:var(--ink);}
   body.dark-mode .daily-log-quickdate button.active{background:#fff; color:var(--navy-900); border-color:#fff;}
   body.dark-mode .daily-log-hint{color:#8892ab;}
@@ -962,7 +970,10 @@
 <!-- 每日記錄：單一站點在月份以外，可自由選日期分別登錄多筆讀數 -->
 <div class="overlay" id="dailyLogOverlay">
   <div class="sheet daily-log-sheet">
-    <h2>📅 每日記錄</h2>
+    <div class="daily-log-header">
+      <button type="button" id="dailyLogBackBtn" class="daily-log-back" aria-label="返回站點清單">←</button>
+      <h2>📅 每日記錄</h2>
+    </div>
     <div class="daily-log-site" id="dailyLogSiteInfo"></div>
 
     <div class="daily-log-quickdate" id="dailyLogQuickDate">
@@ -1657,6 +1668,11 @@
   document.getElementById("dailyLogAddBtn").addEventListener("click", submitDailyLogEntry);
   document.getElementById("dailyLogValueInput").addEventListener("keydown", e=>{
     if(e.key === "Enter") submitDailyLogEntry();
+  });
+  document.getElementById("dailyLogBackBtn").addEventListener("click", ()=>{
+    document.getElementById("dailyLogOverlay").classList.remove("open");
+    renderDailyNavList();
+    document.getElementById("dailyNavOverlay").classList.add("open");
   });
   document.getElementById("dailyLogCloseBtn").addEventListener("click", ()=>{
     document.getElementById("dailyLogOverlay").classList.remove("open");
