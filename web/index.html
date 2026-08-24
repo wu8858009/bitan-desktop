@@ -1,0 +1,2246 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>碧潭能源管理系統</title>
+<meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
+<meta name="theme-color" content="#0d2140">
+<meta name="app-build" content="3.5">
+<link rel="manifest" href="manifest.json">
+<script>
+(function(){
+  try{
+    if(sessionStorage.getItem("bitan_update_checked_v1")) return;
+    sessionStorage.setItem("bitan_update_checked_v1", "1");
+    var currentBuild = document.querySelector('meta[name="app-build"]').content;
+    fetch(location.pathname, {cache:"no-store"}).then(function(r){ return r.text(); }).then(function(html){
+      var m = html.match(/<meta name="app-build" content="([^"]+)">/);
+      if(m && m[1] !== currentBuild){
+        var url = new URL(location.href);
+        url.searchParams.set("_v", m[1]);
+        location.replace(url.toString());
+      }
+    }).catch(function(){});
+  }catch(e){}
+})();
+</script>
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  :root{
+    --navy-950:#081527;
+    --navy-900:#0d2140;
+    --navy-800:#123262;
+    --navy-700:#1a4180;
+    --gold:#f5b400;
+    --gold-dark:#d99900;
+    --blue-tag:#2f7bf6;
+    --water:#2f7bf6;
+    --elec:#f5b400;
+    --gas:#ff6a3d;
+    --bg:#eef1f6;
+    --card:#ffffff;
+    --ink:#131a2b;
+    --ink-soft:#6b7280;
+    --line:#e3e7ee;
+    --danger:#e0483e;
+    --radius:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; min-width:0;}
+  html{overflow-x:hidden; width:100%;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",Segoe UI,Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    max-width:100vw; overflow-x:hidden;}
+  body{padding-bottom:86px;}
+  input,button,select{font-family:inherit;}
+  button{cursor:pointer;}
+
+  /* ===== Header ===== */
+  .topbar{
+    --tb-pad:18px;
+    background:linear-gradient(160deg,var(--navy-950),var(--navy-900) 60%,var(--navy-800));
+    padding:14px var(--tb-pad) 0 var(--tb-pad);
+    position:sticky; top:0; z-index:50;
+    box-shadow:0 6px 18px rgba(8,21,39,.25);
+  }
+  .statusline{display:flex; justify-content:space-between; align-items:center; color:#fff; font-size:13px; opacity:.55; padding-bottom:4px;}
+  .title-row{display:flex; align-items:center; justify-content:center; gap:10px; padding:14px 0 16px;}
+  .title-row h1{color:#fff; font-size:21px; margin:0; font-weight:800; letter-spacing:.5px;}
+  .pro-badge{background:var(--gold); color:#3a2900; font-weight:800; font-size:11px; padding:4px 9px; border-radius:8px; letter-spacing:.5px;}
+
+  .control-panel{
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:14px;
+    display:flex; align-items:center; flex-wrap:wrap;
+    padding:6px 8px; gap:10px 10px; margin-bottom:12px;
+  }
+  .month-select{
+    background:#fff; border:none; border-radius:10px; padding:11px 14px;
+    font-weight:800; font-size:16px; color:var(--ink); flex:0 0 auto;
+    display:flex; align-items:center; gap:8px; height:44px;
+  }
+  .month-select select{border:none; background:transparent; font-weight:800; font-size:16px; color:var(--ink); appearance:none; -webkit-appearance:none; max-width:110px;}
+  .divider-v{width:1px; height:26px; background:rgba(255,255,255,.18); flex:0 0 auto;}
+  .date-group{
+    display:flex; align-items:center; gap:8px;
+    flex:1 1 120px; min-width:0;
+  }
+  .date-label{color:rgba(255,255,255,.75); font-size:14px; font-weight:600; white-space:nowrap; flex:0 0 auto;}
+  .date-input{
+    flex:1 1 auto; min-width:0; background:#fff; border:none; border-radius:10px; padding:0 12px;
+    font-size:15px; color:var(--ink); font-weight:700; height:44px; line-height:44px;
+    text-align:left; display:flex; align-items:center; justify-content:space-between; gap:6px;
+    font-family:inherit; -webkit-appearance:none; appearance:none;
+  }
+  .date-input .cal-ic{opacity:.55; font-size:15px;}
+
+  .search-wrap{position:relative; margin-bottom:12px;}
+  .search-input{
+    width:100%; background:#fff; border:none; border-radius:14px;
+    padding:15px 16px 15px 46px; font-size:16px; color:var(--ink);
+  }
+  .search-input::placeholder{color:#9aa3b2;}
+  .search-icon{position:absolute; left:16px; top:50%; transform:translateY(-50%); font-size:18px; opacity:.55;}
+
+  .summary-bar{
+    background:var(--navy-950);
+    display:grid; grid-template-columns:1fr 1fr 1fr auto;
+    align-items:center; gap:6px;
+    padding:14px 16px; margin:0 calc(var(--tb-pad) * -1); 
+  }
+  .summary-item{text-align:center;}
+  .summary-item .lbl{color:rgba(255,255,255,.55); font-size:12px; font-weight:600; margin-bottom:3px;}
+  .summary-item .val{color:var(--gold); font-size:22px; font-weight:800;}
+  .summary-item.water .val{color:#5fa8ff;}
+  .summary-item.gas .val{color:#ff8a63;}
+  .save-btn{
+    background:var(--gold); color:#3a2900; border:none; border-radius:12px;
+    padding:13px 18px; font-weight:800; font-size:15px; display:flex; align-items:center; gap:6px;
+    box-shadow:0 4px 10px rgba(245,180,0,.35);
+  }
+  .save-btn:active{transform:scale(.97);}
+
+  .topbar-inner{max-width:960px; margin:0 auto; width:100%;}
+
+  /* ===== Content ===== */
+  .content-outer{width:100%;}
+  .content{padding:16px 14px 8px; max-width:960px; margin:0 auto;}
+  .empty-state{text-align:center; padding:60px 20px; color:var(--ink-soft); grid-column:1/-1;}
+  .empty-state .emoji{font-size:44px; margin-bottom:10px;}
+  .empty-state button{margin-top:14px; background:var(--navy-900); color:#fff; border:none; border-radius:12px; padding:12px 22px; font-weight:700;}
+
+  .meter-card{
+    background:var(--card); border-radius:14px;
+    padding:14px; margin-bottom:12px;
+    box-shadow:0 1px 3px rgba(20,30,60,.06), 0 10px 24px rgba(20,30,60,.04);
+    border-left:4px solid var(--blue-tag);
+    position:relative;
+  }
+  .meter-card.type-elec{border-left-color:var(--elec);}
+  .meter-card.type-gas{border-left-color:var(--gas);}
+
+  .card-top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; flex-wrap:wrap; gap:6px;}
+  .name-tag{
+    background:#171e2e; color:#fff; font-weight:800; font-size:13px;
+    padding:5px 11px; border-radius:8px; display:inline-block;
+  }
+  .edit-link{color:var(--blue-tag); font-size:12px; font-weight:700; margin-left:8px; text-decoration:none;}
+  .usage-box{text-align:right;}
+  .usage-box .lbl{font-size:11px; color:var(--ink-soft); font-weight:600;}
+  .usage-box .val{font-size:21px; font-weight:800; color:var(--ink);}
+  .usage-box .val.positive{color:var(--blue-tag);}
+  .usage-box .val.invalid{color:var(--danger)!important;}
+  .type-elec .usage-box .val.positive{color:#c98c00;}
+  .type-gas .usage-box .val.positive{color:var(--gas);}
+
+  .type-badge{
+    display:inline-flex; align-items:center; gap:5px;
+    background:var(--blue-tag); color:#fff; font-weight:800; font-size:12px;
+    padding:5px 10px; border-radius:8px; margin-bottom:5px; cursor:pointer;
+  }
+  .type-elec .type-badge{background:var(--elec); color:#3a2900;}
+  .type-gas .type-badge{background:var(--gas);}
+  .type-badge .swap{opacity:.85; font-size:11px; cursor:pointer;}
+
+  .site-name{font-size:18px; font-weight:800; margin:0 0 2px; overflow-wrap:break-word; word-break:break-word;}
+  .site-meta{color:var(--ink-soft); font-size:12.5px; margin-bottom:10px; display:flex; align-items:flex-start; gap:4px; overflow-wrap:break-word; word-break:break-word;}
+
+  .reading-row{display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:4px;}
+  .field-label{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+  .field-label span{font-weight:700; font-size:12.5px; color:var(--ink);}
+  .lock-btn{
+    background:#eef0f4; color:#8a91a3; border:none; border-radius:7px;
+    font-size:11px; font-weight:700; padding:5px 8px; display:flex; align-items:center; gap:3px;
+  }
+  .lock-btn.unlocked{background:#fff3cd; color:#8a6d00;}
+  .prev-field{
+    background:#f3f4f7; border:1px solid var(--line); border-radius:10px;
+    padding:12px; font-size:21px; font-weight:800; color:#3a4152;
+  }
+  .prev-field.editable{background:#fffbea; border-color:#f5d97a;}
+  .prev-field input{width:100%; border:none; background:transparent; font-size:21px; font-weight:800; color:#3a4152; outline:none;}
+  .curr-field input{
+    width:100%; border:1px solid var(--line); border-radius:10px; background:#fff;
+    padding:12px; font-size:21px; font-weight:800; color:var(--ink); outline:none;
+  }
+  .curr-field input:focus{border-color:var(--blue-tag); box-shadow:0 0 0 3px rgba(47,123,246,.12);}
+  .type-elec .curr-field input:focus{border-color:var(--elec); box-shadow:0 0 0 3px rgba(245,180,0,.15);}
+  .type-gas .curr-field input:focus{border-color:var(--gas); box-shadow:0 0 0 3px rgba(255,106,61,.15);}
+  .curr-field.has-error input{border-color:var(--danger); box-shadow:0 0 0 3px rgba(224,72,62,.12);}
+  .curr-field.has-caution input{border-color:#e0a02e; box-shadow:0 0 0 3px rgba(224,160,46,.14);}
+  .curr-warning{
+    display:none; align-items:flex-start; gap:5px; margin:6px 0 4px;
+    font-size:12px; font-weight:700; line-height:1.4; padding:8px 10px; border-radius:9px;
+  }
+  .curr-warning.show{display:flex;}
+  .curr-warning.lvl-error{background:#fff1ef; color:var(--danger);}
+  .curr-warning.lvl-caution{background:#fff8ea; color:#8a5a00;}
+
+  .photo-btn{
+    width:100%; margin-top:10px; background:#fff; border:2px dashed #c7cede; border-radius:10px;
+    padding:12px; text-align:center; color:#5c6478; font-weight:700; font-size:13.5px;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .photo-preview{margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;}
+  .photo-preview img{width:56px; height:56px; object-fit:cover; border-radius:7px; border:1px solid var(--line);}
+
+  .card-actions{display:flex; justify-content:flex-end; gap:12px; margin-top:10px; padding-top:10px; border-top:1px solid var(--line);}
+  .card-actions button{background:none; border:none; color:var(--ink-soft); font-size:12px; font-weight:700; display:flex; align-items:center; gap:4px;}
+  .card-actions button.danger{color:var(--danger);}
+
+  /* ===== Bottom nav ===== */
+  .bottomnav{
+    position:fixed; left:0; right:0; bottom:0; z-index:60;
+    background:#fff; border-top:1px solid var(--line);
+    padding:8px 0 calc(8px + env(safe-area-inset-bottom));
+    box-shadow:0 -4px 14px rgba(20,30,60,.06);
+  }
+  .bottomnav-inner{
+    display:grid; grid-template-columns:repeat(7,1fr);
+    max-width:680px; margin:0 auto;
+  }
+  .nav-item{display:flex; flex-direction:column; align-items:center; gap:3px; background:none; border:none; color:#9aa3b2; font-size:10px; font-weight:700; padding:2px 0;}
+  .nav-item .ic{font-size:18px;}
+  .nav-item.active{color:var(--navy-900);}
+  .nav-item.add .ic{background:var(--navy-900); color:#fff; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:17px;}
+
+  /* ===== Modal ===== */
+  .overlay{position:fixed; inset:0; background:rgba(8,15,30,.5); z-index:100; display:none; align-items:flex-end; justify-content:center;}
+  .overlay.open{display:flex;}
+  .sheet{
+    background:#fff; width:100%; max-width:520px; border-radius:20px 20px 0 0;
+    padding:20px 20px calc(20px + env(safe-area-inset-bottom)); max-height:88vh; overflow-y:auto;
+    animation:slideup .22s ease;
+  }
+  @keyframes slideup{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .sheet h2{margin:0 0 16px; font-size:19px; font-weight:800;}
+  .form-group{margin-bottom:14px;}
+  .form-group label{display:block; font-size:13px; font-weight:700; color:var(--ink-soft); margin-bottom:6px;}
+  .form-group input, .form-group select{
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:12px 14px; font-size:15px; outline:none; background:#fbfcfe;
+  }
+  .form-group input:focus, .form-group select:focus{border-color:var(--navy-800);}
+  .type-choice{display:flex; gap:8px;}
+  .type-choice button{
+    flex:1; border:1.5px solid var(--line); background:#fbfcfe; border-radius:10px; padding:12px; font-weight:800; font-size:14px; color:var(--ink-soft);
+  }
+  .type-choice button.sel-water{border-color:var(--blue-tag); background:#eaf2ff; color:var(--blue-tag);}
+  .type-choice button.sel-elec{border-color:var(--elec); background:#fff8e5; color:#a97400;}
+  .type-choice button.sel-gas{border-color:var(--gas); background:#fff1ec; color:var(--gas);}
+  .sheet-actions{display:flex; gap:10px; margin-top:6px;}
+  .sheet-actions button{flex:1; border:none; border-radius:12px; padding:14px; font-weight:800; font-size:15px;}
+  .btn-cancel{background:#eef0f4; color:#5c6478;}
+  .btn-confirm{background:var(--navy-900); color:#fff;}
+
+  .toast{
+    position:fixed; left:50%; bottom:100px; transform:translateX(-50%) translateY(20px);
+    background:#171e2e; color:#fff; padding:12px 20px; border-radius:12px; font-size:14px; font-weight:700;
+    opacity:0; transition:all .25s ease; z-index:200; white-space:nowrap;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  /* ===== 自訂確認彈窗 ===== */
+  .confirm-sheet{max-width:360px;}
+  .confirm-message{font-size:14.5px; line-height:1.6; color:var(--ink); margin:0 0 20px; white-space:pre-line;}
+  .btn-confirm.danger-confirm{background:var(--danger);}
+
+  /* ===== 自訂日期選擇器（取代瀏覽器原生 input type=date） ===== */
+  .cal-sheet{max-width:360px;}
+  .cal-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .cal-header .cal-title{font-size:17px; font-weight:800;}
+  .cal-nav-btn{
+    width:36px; height:36px; border-radius:10px; border:none; background:#f1f3f7;
+    color:var(--navy-900); font-size:18px; font-weight:800; display:flex; align-items:center; justify-content:center;
+  }
+  .cal-nav-btn:active{background:#e3e7ee;}
+  .cal-weekdays{display:grid; grid-template-columns:repeat(7,1fr); text-align:center; margin-bottom:6px;}
+  .cal-weekdays span{font-size:12px; font-weight:700; color:var(--ink-soft); padding:6px 0;}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px;}
+  .cal-day{
+    aspect-ratio:1/1; border:none; background:none; border-radius:10px;
+    font-size:15px; font-weight:700; color:var(--ink); display:flex; align-items:center; justify-content:center;
+  }
+  .cal-day.other-month{color:#c7cede;}
+  .cal-day.is-today{box-shadow:inset 0 0 0 1.5px var(--gold-dark);}
+  .cal-day.is-selected{background:var(--navy-900); color:#fff;}
+  .cal-day:active{background:#eef0f4;}
+  .cal-day.is-selected:active{background:var(--navy-800);}
+  .cal-footer{display:flex; gap:10px; margin-top:16px;}
+  .cal-footer button{flex:1; border:none; border-radius:12px; padding:13px; font-weight:800; font-size:14px;}
+  .cal-today-btn{background:#eef0f4; color:var(--navy-900);}
+  .cal-close-btn{background:var(--navy-900); color:#fff;}
+
+  /* ===== 水/電/瓦斯 類型選擇彈跳視窗 ===== */
+  .type-picker-sheet{max-width:340px;}
+  .type-picker-list{display:flex; flex-direction:column; gap:10px; margin-bottom:14px;}
+  .type-picker-opt{
+    display:flex; align-items:center; gap:12px;
+    border:1.5px solid var(--line); background:#fbfcfe; border-radius:12px;
+    padding:14px 16px; font-size:16px; font-weight:800; color:var(--ink);
+  }
+  .type-picker-opt .opt-ic{font-size:20px;}
+  .type-picker-opt .opt-check{margin-left:auto; opacity:0; font-size:16px;}
+  .type-picker-opt.opt-water.active{border-color:var(--blue-tag); background:#eaf2ff; color:var(--blue-tag);}
+  .type-picker-opt.opt-elec.active{border-color:var(--elec); background:#fff8e5; color:#a97400;}
+  .type-picker-opt.opt-gas.active{border-color:var(--gas); background:#fff1ec; color:var(--gas);}
+  .type-picker-opt.active .opt-check{opacity:1;}
+
+  /* ===== 選單（企業版功能中心） ===== */
+  .menu-sheet{max-width:420px; padding-top:18px;}
+  .menu-sheet h2{display:flex; align-items:center; gap:8px;}
+  .menu-sheet h2 .menu-pro-badge{background:var(--gold); color:#3a2900; font-size:10px; font-weight:800; padding:3px 8px; border-radius:7px;}
+  .menu-stats-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:18px;}
+  .menu-stat{background:#f6f7fa; border-radius:12px; padding:12px 8px; text-align:center;}
+  .menu-stat .n{font-size:20px; font-weight:800; color:var(--navy-900);}
+  .menu-stat .l{font-size:11px; color:var(--ink-soft); font-weight:600; margin-top:2px;}
+  .menu-section{margin-bottom:18px;}
+  .menu-section:last-of-type{margin-bottom:0;}
+  .menu-section-title{
+    font-size:11.5px; font-weight:800; color:var(--ink-soft); letter-spacing:.06em;
+    text-transform:uppercase; margin-bottom:8px; padding-left:2px;
+  }
+  .menu-item{
+    width:100%; display:flex; align-items:center; gap:12px;
+    background:#f8f9fb; border:1px solid var(--line); border-radius:12px;
+    padding:13px 14px; margin-bottom:8px; font-size:14.5px; font-weight:700; color:var(--ink);
+    text-align:left;
+  }
+  .menu-item:last-child{margin-bottom:0;}
+  .menu-item .mi-ic{font-size:18px; width:22px; text-align:center; flex:0 0 auto;}
+  .menu-item .mi-label{flex:1;}
+  .menu-item .mi-sub{font-size:11.5px; color:var(--ink-soft); font-weight:600; display:block; margin-top:1px;}
+  .menu-item .mi-state{font-size:12px; font-weight:700; color:var(--ink-soft); flex:0 0 auto;}
+  .menu-item .mi-chev{color:#c7cede; font-size:14px; flex:0 0 auto;}
+  .menu-item.danger{color:var(--danger); background:#fff3f2; border-color:#ffd9d5;}
+  .menu-item.danger .mi-ic{filter:none;}
+  .menu-item:active{background:#eef0f4;}
+  .toggle-switch{
+    width:42px; height:24px; border-radius:99px; background:#d7dbe5; position:relative; flex:0 0 auto;
+    transition:background .15s ease;
+  }
+  .toggle-switch::after{
+    content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%;
+    background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:left .15s ease;
+  }
+  .toggle-switch.on{background:var(--navy-900);}
+  .toggle-switch.on::after{left:21px;}
+  .menu-version{text-align:center; color:var(--ink-soft); font-size:12px; font-weight:600; padding-top:4px;}
+
+  /* ===== 圖表分析 ===== */
+  .chart-sheet{max-width:520px;}
+  .chart-tabs{display:flex; gap:8px; margin-bottom:16px;}
+  .chart-tab{flex:1; border:1.5px solid var(--line); background:#fbfcfe; border-radius:10px; padding:10px 4px; font-weight:800; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+  .chart-tab.active{border-color:var(--navy-900); background:var(--navy-900); color:#fff;}
+  .chart-canvas-wrap{background:#f8f9fb; border-radius:14px; padding:14px 10px 8px; margin-bottom:14px;}
+  #usageChartCanvas{width:100%; height:190px; display:block;}
+  .chart-legend{display:flex; gap:16px; justify-content:center; margin-top:6px; font-size:12px; font-weight:700; color:var(--ink-soft); flex-wrap:wrap;}
+  .chart-legend span{display:inline-flex; align-items:center; gap:5px;}
+  .legend-dot{width:9px; height:9px; border-radius:50%; display:inline-block;}
+  .chart-stats-row{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:16px;}
+  .chart-stat-card{background:#f8f9fb; border-radius:12px; padding:12px 6px; text-align:center;}
+  .chart-stat-card .n{font-size:18px; font-weight:800; color:var(--ink);}
+  .chart-stat-card .l{font-size:10.5px; color:var(--ink-soft); font-weight:600; margin-top:2px;}
+  .chart-stat-card .delta{font-size:11px; font-weight:800; margin-top:3px;}
+  .chart-stat-card .delta.up{color:var(--danger);}
+  .chart-stat-card .delta.down{color:#1f9d55;}
+  .chart-stat-card .delta.flat{color:var(--ink-soft);}
+  .top-usage-list{margin-bottom:4px;}
+  .top-usage-item{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);}
+  .top-usage-item:last-child{border-bottom:none;}
+  .top-usage-item .rank{width:22px; height:22px; border-radius:6px; background:#eef0f4; color:var(--ink-soft); font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; flex:0 0 auto;}
+  .top-usage-item .info{flex:1; min-width:0;}
+  .top-usage-item .name{font-weight:700; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .top-usage-item .sub{font-size:11px; color:var(--ink-soft);}
+  .top-usage-item .amt{font-weight:800; font-size:14.5px; flex:0 0 auto;}
+  .chart-empty{text-align:center; padding:30px 10px; color:var(--ink-soft); font-size:13px;}
+
+  .chart-filter-row{display:flex; gap:8px; margin-bottom:14px; align-items:stretch;}
+  .chart-filter-select{
+    flex:1; min-width:0; border:1.5px solid var(--line); border-radius:10px; padding:0 10px;
+    font-size:12.5px; font-weight:700; color:var(--ink); background:#fbfcfe; height:38px;
+  }
+  .chart-period-toggle{display:flex; border:1.5px solid var(--line); border-radius:10px; overflow:hidden; flex:0 0 auto;}
+  .chart-period-toggle button{padding:0 13px; height:38px; font-size:12px; font-weight:800; color:var(--ink-soft); background:#fbfcfe; border:none;}
+  .chart-period-toggle button.active{background:var(--navy-900); color:#fff;}
+
+  .chart-anomaly-box{margin-bottom:14px;}
+  .anomaly-item{display:flex; align-items:flex-start; gap:9px; background:#fff6ea; border:1px solid #ffe0a8; border-radius:12px; padding:11px 12px; margin-bottom:8px;}
+  .anomaly-item:last-child{margin-bottom:0;}
+  .anomaly-item .ai-ic{font-size:16px; flex:0 0 auto; line-height:1.3;}
+  .anomaly-item .ai-text{flex:1; font-weight:700; color:#8a5a00; font-size:12.5px; line-height:1.5;}
+  .anomaly-item .ai-text b{color:#c1440e;}
+  .anomaly-item.severe{background:#fff1ef; border-color:#ffc7bd;}
+  .anomaly-item.severe .ai-text{color:#a13a1f;}
+  .anomaly-item.severe .ai-text b{color:var(--danger);}
+  .anomaly-ok{font-size:12.5px; color:var(--ink-soft); text-align:center; padding:12px 0; background:#f6f7fa; border-radius:12px;}
+
+  .chart-donut-row{display:flex; align-items:center; gap:16px; margin-bottom:16px; background:#f8f9fb; border-radius:14px; padding:14px;}
+  #usageDonutCanvas{flex:0 0 auto; width:100px; height:100px;}
+  .donut-breakdown{flex:1; min-width:0; display:flex; flex-direction:column; gap:7px;}
+  .donut-row{display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--ink);}
+  .donut-row .dot{width:9px; height:9px; border-radius:50%; flex:0 0 auto;}
+  .donut-row .pct{margin-left:auto; color:var(--ink-soft); font-weight:800;}
+
+  /* ===== 深色模式 ===== */
+  body.dark-mode{
+    --bg:#0a1120; --card:#141c2e; --ink:#eef1f6; --ink-soft:#8b93a8; --line:#26304a;
+  }
+  body.dark-mode .search-input,
+  body.dark-mode .month-select,
+  body.dark-mode .date-input,
+  body.dark-mode .prev-field,
+  body.dark-mode .curr-field input,
+  body.dark-mode .form-group input,
+  body.dark-mode .form-group select,
+  body.dark-mode .lock-btn,
+  body.dark-mode .cal-nav-btn,
+  body.dark-mode .btn-cancel,
+  body.dark-mode .type-picker-opt,
+  body.dark-mode .type-choice button,
+  body.dark-mode .menu-item,
+  body.dark-mode .menu-stat{
+    background:#1a2337; color:var(--ink); border-color:#2a3550;
+  }
+  body.dark-mode .type-choice button.sel-water,
+  body.dark-mode .type-picker-opt.opt-water.active{border-color:var(--blue-tag); background:rgba(47,123,246,.18); color:#7aa8ff;}
+  body.dark-mode .type-choice button.sel-elec,
+  body.dark-mode .type-picker-opt.opt-elec.active{border-color:var(--elec); background:rgba(245,180,0,.18); color:var(--elec);}
+  body.dark-mode .type-choice button.sel-gas,
+  body.dark-mode .type-picker-opt.opt-gas.active{border-color:var(--gas); background:rgba(255,106,61,.18); color:var(--gas);}
+  body.dark-mode .sheet{background:#141c2e; color:var(--ink);}
+  body.dark-mode .menu-stat .n{color:#fff;}
+  body.dark-mode .prev-field input{color:var(--ink);}
+  body.dark-mode .search-input::placeholder{color:#5c6684;}
+  body.dark-mode .photo-btn{background:#141c2e; border-color:#3a4568; color:#aab2c8;}
+  body.dark-mode .empty-state button{background:var(--navy-800);}
+  body.dark-mode .bottomnav{background:#0d1526; border-top-color:#232c40;}
+  body.dark-mode .nav-item{color:#5c6684;}
+  body.dark-mode .nav-item.active{color:#fff;}
+  body.dark-mode .card-actions{border-top-color:#26304a;}
+  body.dark-mode .menu-item.danger{background:#2a1518; border-color:#4a2229; color:#ff8a80;}
+  body.dark-mode .chart-tab{background:#1a2337; color:var(--ink-soft); border-color:#2a3550;}
+  body.dark-mode .chart-tab.active{background:#fff; color:var(--navy-900); border-color:#fff;}
+  body.dark-mode .chart-canvas-wrap,
+  body.dark-mode .chart-stat-card,
+  body.dark-mode .top-usage-item .rank{background:#1a2337;}
+  body.dark-mode .top-usage-item{border-bottom-color:#26304a;}
+  body.dark-mode .chart-filter-select,
+  body.dark-mode .chart-period-toggle button{background:#1a2337; color:var(--ink-soft); border-color:#2a3550;}
+  body.dark-mode .chart-period-toggle button.active{background:#fff; color:var(--navy-900);}
+  body.dark-mode .chart-donut-row{background:#1a2337;}
+  body.dark-mode .anomaly-item{background:#2a2210; border-color:#4a3a12; }
+  body.dark-mode .anomaly-item .ai-text{color:#f0c674;}
+  body.dark-mode .anomaly-item.severe{background:#2a1815; border-color:#4a2420;}
+  body.dark-mode .anomaly-item.severe .ai-text{color:#ff9d8a;}
+  body.dark-mode .anomaly-ok{background:#1a2337;}
+  body.dark-mode .curr-warning.lvl-error{background:#2a1815; color:#ff9d8a;}
+  body.dark-mode .curr-warning.lvl-caution{background:#2a2210; color:#f0c674;}
+  body.dark-mode .confirm-message{color:var(--ink);}
+
+
+  /* ============================================================
+     RESPONSIVE BREAKPOINTS — 自動偵測裝置寬度並調整版面
+     xs  : < 380px   (小尺寸手機, e.g. iPhone SE)
+     sm  : >= 480px  (一般手機橫向 / 大手機)
+     md  : >= 700px  (直式平板)
+     lg  : >= 1024px (橫式平板 / 小筆電)
+     xl  : >= 1400px (桌機 / 大螢幕)
+     ============================================================ */
+
+  /* --- 窄螢幕手機：兩個欄位仍維持左右並排，只是各自可以縮小 --- */
+  @media (max-width:430px){
+    .control-panel{padding:6px; gap:8px;}
+    .month-select{padding:11px 10px;}
+    .month-select select{max-width:88px;}
+    .date-input{padding:0 10px; font-size:14px;}
+  }
+
+  /* --- xs: 小尺寸手機微調，避免擠壓 --- */
+  @media (max-width:379px){
+    .title-row h1{font-size:17px;}
+    .pro-badge{font-size:10px; padding:3px 7px;}
+    .summary-item .val{font-size:18px;}
+    .save-btn{padding:11px 12px; font-size:13px;}
+    .site-name{font-size:19px;}
+    .prev-field, .curr-field input{font-size:21px; padding:12px;}
+    .reading-row{gap:8px;}
+  }
+
+  /* --- sm/md: 平板直式，卡片開始雙欄 --- */
+  @media (min-width:700px){
+    body{padding-bottom:78px;}
+    .content{padding:20px 24px 12px;}
+    #cardList{display:grid; grid-template-columns:repeat(2,1fr); gap:16px; align-content:start;}
+    .meter-card{margin-bottom:0;}
+    .topbar{--tb-pad:24px; padding-top:16px;}
+    .control-panel{padding:8px 10px;}
+    .date-input{max-width:180px; flex:0 0 auto;}
+  }
+
+  /* --- lg: 橫式平板／小筆電，三欄卡片，寬版標題列 --- */
+  @media (min-width:1024px){
+    .topbar-inner, .content, .bottomnav-inner{max-width:1180px;}
+    .topbar{--tb-pad:32px; padding-top:18px;}
+    .title-row h1{font-size:24px;}
+    #cardList{grid-template-columns:repeat(3,1fr); gap:18px;}
+    .content{padding:24px 32px 16px;}
+    .search-input{padding:16px 18px 16px 48px; font-size:15px;}
+    .summary-item .val{font-size:24px;}
+    .bottomnav{padding-top:10px;}
+    .nav-item{font-size:12px;}
+    .nav-item .ic{font-size:22px;}
+    /* 桌面用滑鼠操作時，卡片 hover 有輕微浮起回饋 */
+    .meter-card{transition:box-shadow .15s ease, transform .15s ease;}
+    .meter-card:hover{box-shadow:0 4px 10px rgba(20,30,60,.08), 0 16px 32px rgba(20,30,60,.08); transform:translateY(-2px);}
+    .save-btn:hover, .photo-btn:hover, .edit-link:hover{opacity:.85;}
+  }
+
+  /* --- xl: 桌機大螢幕，四欄卡片，容器再放寬 --- */
+  @media (min-width:1400px){
+    .topbar-inner, .content, .bottomnav-inner{max-width:1520px;}
+    #cardList{grid-template-columns:repeat(4,1fr);}
+  }
+
+  /* --- 直式平板/桌機下，彈出視窗改置中而非貼底，且不用全寬 --- */
+  @media (min-width:700px){
+    .overlay{align-items:center;}
+    .sheet{max-width:480px; border-radius:20px; max-height:84vh;}
+  }
+
+  /* --- 短螢幕高度（例如橫向手機）：讓彈出視窗可完整捲動 --- */
+  @media (max-height:560px) and (orientation:landscape){
+    .sheet{max-height:94vh;}
+    .topbar{padding-top:8px;}
+    .title-row{padding:8px 0 10px;}
+  }
+
+  /* --- 支援可摺疊/極寬螢幕：避免內容被拉得過寬過扁 --- */
+  @media (min-width:1920px){
+    .topbar-inner, .content, .bottomnav-inner{max-width:1680px;}
+  }
+
+  /* --- 減少動態效果偏好 --- */
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+ <div class="topbar-inner">
+  <div class="title-row">
+    <h1>碧潭能源管理系統</h1>
+    <span class="pro-badge">PRO v3.5</span>
+  </div>
+
+  <div class="control-panel">
+    <div class="month-select">
+      <span>📅</span>
+      <select id="monthSelect"></select>
+    </div>
+    <div class="divider-v"></div>
+    <div class="date-group">
+      <button type="button" class="date-input" id="recordDateBtn">
+        <span id="recordDateText">2026/07/02</span>
+        <span class="cal-ic">📅</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input class="search-input" id="searchBox" placeholder="搜尋店名、編號 or 位置...">
+  </div>
+
+  <div class="summary-bar">
+    <div class="summary-item water"><div class="lbl">水(度)</div><div class="val" id="sumWater">0.0</div></div>
+    <div class="summary-item elec"><div class="lbl">電(度)</div><div class="val" id="sumElec">0</div></div>
+    <div class="summary-item gas"><div class="lbl">瓦斯(度)</div><div class="val" id="sumGas">0.0</div></div>
+    <button class="save-btn" id="saveAllBtn">💾 儲存</button>
+  </div>
+ </div>
+</div>
+
+<div class="content-outer">
+  <div class="content" id="cardList"></div>
+</div>
+
+<div class="bottomnav">
+ <div class="bottomnav-inner">
+  <button class="nav-item active" data-filter="all"><span class="ic">📋</span>全部</button>
+  <button class="nav-item" data-filter="water"><span class="ic">💧</span>水錶</button>
+  <button class="nav-item" data-filter="elec"><span class="ic">⚡</span>電錶</button>
+  <button class="nav-item" data-filter="gas"><span class="ic">🔥</span>瓦斯</button>
+  <button class="nav-item" id="chartBtn"><span class="ic">📈</span>圖表</button>
+  <button class="nav-item add" id="addBtn"><span class="ic">＋</span>新增</button>
+  <button class="nav-item" id="menuBtn"><span class="ic">⚙️</span>選單</button>
+ </div>
+</div>
+
+<!-- Add/Edit modal -->
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h2 id="sheetTitle">新增站點</h2>
+    <div class="form-group">
+      <label>群組 / 客戶名稱</label>
+      <input type="text" id="f_group" placeholder="例：吞吞吐吐">
+    </div>
+    <div class="form-group">
+      <label>站點名稱</label>
+      <input type="text" id="f_site" placeholder="例：乒乒乓乓">
+    </div>
+    <div class="form-group">
+      <label>位置</label>
+      <input type="text" id="f_location" placeholder="例：密密麻麻">
+    </div>
+    <div class="form-group">
+      <label>錶號</label>
+      <input type="text" id="f_meterno" placeholder="例：89676">
+    </div>
+    <div class="form-group">
+      <label>類型</label>
+      <div class="type-choice">
+        <button type="button" data-type="water">💧 水</button>
+        <button type="button" data-type="elec">⚡ 電</button>
+        <button type="button" data-type="gas">🔥 瓦斯</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>上期讀數</label>
+      <input type="number" id="f_prev" placeholder="0" inputmode="decimal">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="cancelBtn">取消</button>
+      <button class="btn-confirm" id="confirmBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 圖表分析 -->
+<div class="overlay" id="chartOverlay">
+  <div class="sheet chart-sheet">
+    <h2>用量趨勢分析 <span class="menu-pro-badge">PRO</span></h2>
+
+    <div class="chart-filter-row">
+      <select class="chart-filter-select" id="chartGroupFilter">
+        <option value="all">全部群組</option>
+      </select>
+      <div class="chart-period-toggle">
+        <button type="button" class="active" data-period="6">近6期</button>
+        <button type="button" data-period="12">近12期</button>
+      </div>
+    </div>
+
+    <div class="chart-tabs">
+      <button type="button" class="chart-tab active" data-chart-type="all">全部</button>
+      <button type="button" class="chart-tab" data-chart-type="water">💧 水</button>
+      <button type="button" class="chart-tab" data-chart-type="elec">⚡ 電</button>
+      <button type="button" class="chart-tab" data-chart-type="gas">🔥 瓦斯</button>
+    </div>
+
+    <div class="chart-canvas-wrap">
+      <canvas id="usageChartCanvas"></canvas>
+      <div class="chart-legend" id="chartLegend"></div>
+    </div>
+
+    <div class="menu-section-title">異常用量警示</div>
+    <div class="chart-anomaly-box" id="chartAnomalyBox"></div>
+
+    <div class="chart-stats-row" id="chartStatsRow"></div>
+
+    <div class="chart-donut-row" id="chartDonutRow">
+      <canvas id="usageDonutCanvas" width="110" height="110"></canvas>
+      <div class="donut-breakdown" id="donutBreakdown"></div>
+    </div>
+
+    <div class="menu-section-title">本期用量排行</div>
+    <div class="top-usage-list" id="topUsageList"></div>
+
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="chartExportBtn">📄 匯出報告</button>
+      <button class="btn-confirm" id="chartCloseBtn">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 選單（企業版功能中心） -->
+<div class="overlay" id="menuOverlay">
+  <div class="sheet menu-sheet">
+    <h2>系統選單 <span class="menu-pro-badge">PRO</span></h2>
+
+    <div class="menu-stats-grid" id="menuStatsGrid"></div>
+
+    <div class="menu-section">
+      <div class="menu-section-title">報表與匯出</div>
+      <button type="button" class="menu-item" id="mExportCsv">
+        <span class="mi-ic">📊</span>
+        <span class="mi-label">匯出本期報表<span class="mi-sub">Excel / CSV 格式，可用試算表開啟</span></span>
+        <span class="mi-chev">›</span>
+      </button>
+      <button type="button" class="menu-item" id="mExportPdf">
+        <span class="mi-ic">🖨️</span>
+        <span class="mi-label">列印 / 匯出 PDF<span class="mi-sub">本期抄錄總表，適合存檔或交接</span></span>
+        <span class="mi-chev">›</span>
+      </button>
+    </div>
+
+    <div class="menu-section">
+      <div class="menu-section-title">資料備份</div>
+      <button type="button" class="menu-item" id="mExportJson">
+        <span class="mi-ic">💾</span>
+        <span class="mi-label">匯出完整備份<span class="mi-sub">包含所有站點與歷史抄錄紀錄</span></span>
+        <span class="mi-chev">›</span>
+      </button>
+      <button type="button" class="menu-item" id="mImportJson">
+        <span class="mi-ic">📥</span>
+        <span class="mi-label">匯入備份還原<span class="mi-sub">從先前匯出的檔案還原資料</span></span>
+        <span class="mi-chev">›</span>
+      </button>
+    </div>
+
+    <div class="menu-section">
+      <div class="menu-section-title">顯示設定</div>
+      <button type="button" class="menu-item" id="mDarkToggle">
+        <span class="mi-ic">🌙</span>
+        <span class="mi-label">深色模式<span class="mi-sub">保護眼睛，適合夜間抄錶</span></span>
+        <span class="toggle-switch" id="darkToggleSwitch"></span>
+      </button>
+    </div>
+
+    <div class="menu-section">
+      <div class="menu-section-title">資料安全</div>
+      <button type="button" class="menu-item danger" id="mClearMonth">
+        <span class="mi-ic">🗑️</span>
+        <span class="mi-label">清除本期抄錄資料<span class="mi-sub">僅清空目前月份的讀數，站點資料保留</span></span>
+        <span class="mi-chev">›</span>
+      </button>
+      <button type="button" class="menu-item danger" id="mClearAll">
+        <span class="mi-ic">⚠️</span>
+        <span class="mi-label">清除全部資料<span class="mi-sub">站點、所有月份紀錄將全部刪除</span></span>
+        <span class="mi-chev">›</span>
+      </button>
+    </div>
+
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="menuCloseBtn">關閉</button>
+    </div>
+    <div class="menu-version">碧潭能源管理系統 PRO v3.5 ・ 資料儲存於本機瀏覽器</div>
+  </div>
+</div>
+
+<input type="file" id="importFileInput" accept="application/json" style="display:none">
+
+<!-- 水/電/瓦斯 類型選擇彈跳視窗 -->
+<div class="overlay" id="typeOverlay">
+  <div class="sheet type-picker-sheet">
+    <h2>選擇類型</h2>
+    <div class="type-picker-list">
+      <button type="button" class="type-picker-opt opt-water" data-picktype="water">
+        <span class="opt-ic">💧</span> 水 <span class="opt-check">✓</span>
+      </button>
+      <button type="button" class="type-picker-opt opt-elec" data-picktype="elec">
+        <span class="opt-ic">⚡</span> 電 <span class="opt-check">✓</span>
+      </button>
+      <button type="button" class="type-picker-opt opt-gas" data-picktype="gas">
+        <span class="opt-ic">🔥</span> 瓦斯 <span class="opt-check">✓</span>
+      </button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="typeCancelBtn">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 自訂日期選擇器彈窗 -->
+<div class="overlay" id="dateOverlay">
+  <div class="sheet cal-sheet">
+    <div class="cal-header">
+      <button type="button" class="cal-nav-btn" id="calPrevBtn">‹</button>
+      <div class="cal-title" id="calMonthLabel">2026年7月</div>
+      <button type="button" class="cal-nav-btn" id="calNextBtn">›</button>
+    </div>
+    <div class="cal-weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-footer">
+      <button type="button" class="cal-today-btn" id="calTodayBtn">今天</button>
+      <button type="button" class="cal-close-btn" id="calCloseBtn">關閉</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+<div class="toast" id="toast"></div>
+
+<!-- 照片放大檢視 -->
+<div class="overlay" id="photoViewerOverlay" style="z-index:250; align-items:center;">
+  <img id="photoViewerImg" alt="照片放大檢視" style="max-width:92vw; max-height:86vh; border-radius:10px; object-fit:contain;">
+  <button type="button" id="photoViewerCloseBtn" aria-label="關閉" style="position:absolute; top:16px; right:16px; width:40px; height:40px; border-radius:50%; border:none; background:rgba(255,255,255,.15); color:#fff; font-size:22px; line-height:1; cursor:pointer;">✕</button>
+</div>
+
+<!-- 自訂確認彈窗（取代瀏覽器原生 confirm/alert，避免部分環境阻擋跳出視窗） -->
+<div class="overlay" id="confirmOverlay">
+  <div class="sheet confirm-sheet">
+    <h2 id="confirmTitle">請確認</h2>
+    <p class="confirm-message" id="confirmMessage"></p>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="confirmCancelBtn">取消</button>
+      <button class="btn-confirm" id="confirmOkBtn">確定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const TYPE_META = {
+    water:{label:"水", icon:"💧", cls:"type-water", unit:"度"},
+    elec:{label:"電", icon:"⚡", cls:"type-elec", unit:"度"},
+    gas:{label:"瓦斯", icon:"🔥", cls:"type-gas", unit:"度"}
+  };
+
+  let sites = [];
+  let currentFilter = "all";
+  let editingSiteId = null;
+  let chosenType = "water";
+  let currentMonthKey = null;
+  let currentPhotoTargetId = null;
+
+  // ---- 本機資料儲存（單機版：不連後端，站點/讀數存 localStorage，照片存 IndexedDB） ----
+  const LS_SITES = "bitan_sites_v1";
+  const LS_READINGS = "bitan_readings_v1";
+
+  function persistSites(){
+    localStorage.setItem(LS_SITES, JSON.stringify(sites));
+  }
+  function persistReadings(){
+    // 只存 curr 與照片 id 參照，不存照片本身（照片存在 IndexedDB）
+    const slim = {};
+    for(const monthKey in readingsCache){
+      slim[monthKey] = {};
+      for(const siteId in readingsCache[monthKey]){
+        const r = readingsCache[monthKey][siteId];
+        slim[monthKey][siteId] = {curr: r.curr, photos: (r.photos||[]).map(p=>({id:p.id}))};
+      }
+    }
+    localStorage.setItem(LS_READINGS, JSON.stringify(slim));
+  }
+
+  // ---- 照片儲存（IndexedDB，原生 API）----
+  let photoDbPromise = null;
+  function openPhotoDb(){
+    if(photoDbPromise) return photoDbPromise;
+    photoDbPromise = new Promise((resolve, reject)=>{
+      const req = indexedDB.open("bitan-photos", 1);
+      req.onupgradeneeded = ()=>{ req.result.createObjectStore("photos", {keyPath:"id"}); };
+      req.onsuccess = ()=>resolve(req.result);
+      req.onerror = ()=>reject(req.error);
+    });
+    return photoDbPromise;
+  }
+  async function savePhotoBlob(id, blob, contentType){
+    const db = await openPhotoDb();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction("photos", "readwrite");
+      tx.objectStore("photos").put({id, blob, contentType});
+      tx.oncomplete = ()=>resolve();
+      tx.onerror = ()=>reject(tx.error);
+    });
+  }
+  async function getPhotoBlob(id){
+    const db = await openPhotoDb();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction("photos", "readonly");
+      const req = tx.objectStore("photos").get(id);
+      req.onsuccess = ()=>resolve(req.result || null);
+      req.onerror = ()=>reject(req.error);
+    });
+  }
+  async function deletePhotoBlob(id){
+    const db = await openPhotoDb();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction("photos", "readwrite");
+      tx.objectStore("photos").delete(id);
+      tx.oncomplete = ()=>resolve();
+      tx.onerror = ()=>reject(tx.error);
+    });
+  }
+  async function clearAllPhotoBlobs(){
+    const db = await openPhotoDb();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction("photos", "readwrite");
+      tx.objectStore("photos").clear();
+      tx.oncomplete = ()=>resolve();
+      tx.onerror = ()=>reject(tx.error);
+    });
+  }
+
+  // photoId -> objectURL 快取，避免重複 render 時重複產生/洩漏 object URL
+  const photoUrlCache = new Map();
+  async function resolvePhotoUrl(id){
+    if(photoUrlCache.has(id)) return photoUrlCache.get(id);
+    const rec = await getPhotoBlob(id);
+    if(!rec) return null;
+    const url = URL.createObjectURL(rec.blob);
+    photoUrlCache.set(id, url);
+    return url;
+  }
+  function forgetPhotoUrl(id){
+    const url = photoUrlCache.get(id);
+    if(url) URL.revokeObjectURL(url);
+    photoUrlCache.delete(id);
+  }
+
+  // ---- 照片放大檢視 ----
+  function openPhotoViewer(url){
+    document.getElementById("photoViewerImg").src = url;
+    document.getElementById("photoViewerOverlay").classList.add("open");
+  }
+  function closePhotoViewer(){
+    document.getElementById("photoViewerOverlay").classList.remove("open");
+  }
+  document.getElementById("photoViewerCloseBtn").addEventListener("click", closePhotoViewer);
+  document.getElementById("photoViewerOverlay").addEventListener("click", e=>{
+    if(e.target.id === "photoViewerOverlay") closePhotoViewer();
+  });
+
+  // ---- 自訂確認彈窗（取代原生 confirm，避免在受限預覽環境被封鎖） ----
+  let pendingConfirmCallback = null;
+  function showConfirm(message, onConfirm, opts){
+    opts = opts || {};
+    document.getElementById("confirmTitle").textContent = opts.title || "請確認";
+    document.getElementById("confirmMessage").textContent = message;
+    const okBtn = document.getElementById("confirmOkBtn");
+    okBtn.textContent = opts.okLabel || "確定";
+    okBtn.classList.toggle("danger-confirm", !!opts.danger);
+    pendingConfirmCallback = onConfirm;
+    document.getElementById("confirmOverlay").classList.add("open");
+  }
+  document.getElementById("confirmOkBtn").addEventListener("click", ()=>{
+    document.getElementById("confirmOverlay").classList.remove("open");
+    const cb = pendingConfirmCallback;
+    pendingConfirmCallback = null;
+    if(cb) cb();
+  });
+  document.getElementById("confirmCancelBtn").addEventListener("click", ()=>{
+    document.getElementById("confirmOverlay").classList.remove("open");
+    pendingConfirmCallback = null;
+  });
+  document.getElementById("confirmOverlay").addEventListener("click", e=>{
+    if(e.target.id === "confirmOverlay"){
+      e.currentTarget.classList.remove("open");
+      pendingConfirmCallback = null;
+    }
+  });
+
+
+  // readingsCache：{ monthKey: { siteId: {curr, photos:[{id,url}]} } }，開機時從 localStorage/IndexedDB 整批載入
+  let readingsCache = {};
+
+  // 站點 id 一律以字串比對（新站點用 crypto.randomUUID() 產生，配合 dataset.* 都是字串）
+  async function loadSites(){
+    sites = JSON.parse(localStorage.getItem(LS_SITES) || "[]");
+  }
+  async function apiSaveSite(site){
+    const idx = sites.findIndex(s=>s.id===site.id);
+    if(idx !== -1) sites[idx] = {...sites[idx], ...site};
+    persistSites();
+  }
+
+  async function loadAllReadings(){
+    const slim = JSON.parse(localStorage.getItem(LS_READINGS) || "{}");
+    readingsCache = {};
+    for(const monthKey in slim){
+      readingsCache[monthKey] = {};
+      for(const siteId in slim[monthKey]){
+        const r = slim[monthKey][siteId];
+        const photos = await Promise.all((r.photos||[]).map(async p=>({id:p.id, url: await resolvePhotoUrl(p.id)})));
+        readingsCache[monthKey][siteId] = {curr: r.curr===null||r.curr===undefined ? "" : String(r.curr), photos: photos.filter(p=>p.url)};
+      }
+    }
+  }
+
+  function loadReadings(monthKey){
+    return readingsCache[monthKey] || (readingsCache[monthKey] = {});
+  }
+
+  // 本期讀數輸入採防抖動寫入 localStorage，避免每個按鍵都寫一次
+  const currSaveTimers = {};
+  function scheduleSaveCurrValue(siteId, monthKey, value){
+    const key = siteId + "|" + monthKey;
+    clearTimeout(currSaveTimers[key]);
+    currSaveTimers[key] = setTimeout(()=>{
+      delete currSaveTimers[key];
+      persistReadings();
+    }, 500);
+  }
+  function flushPendingCurrSaves(){
+    Object.keys(currSaveTimers).forEach(key=>{
+      clearTimeout(currSaveTimers[key]);
+      delete currSaveTimers[key];
+    });
+    persistReadings();
+  }
+
+  // ---- Month select ----
+  function buildMonthOptions(){
+    const sel = document.getElementById("monthSelect");
+    sel.innerHTML = "";
+    const now = new Date();
+    const options = [];
+    // 自動偵測當年年份，產生該年 1~12 月完整清單
+    const y = now.getFullYear();
+    for(let m=1; m<=12; m++){
+      options.push(y + "-" + String(m).padStart(2,"0"));
+    }
+    options.forEach(key=>{
+      const opt = document.createElement("option");
+      opt.value = key;
+      const [yy,mm] = key.split("-");
+      opt.textContent = `${yy}-${mm}月`;
+      sel.appendChild(opt);
+    });
+    const defaultKey = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0");
+    sel.value = defaultKey;
+    currentMonthKey = defaultKey;
+    sel.addEventListener("change", ()=>{
+      currentMonthKey = sel.value;
+      render();
+    });
+  }
+
+  function getPrevMonthKey(monthKey){
+    const [y,m] = monthKey.split("-").map(Number);
+    const d = new Date(y, m-2, 1);
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+  }
+
+  // ---- resolve previous reading for a site in a given month ----
+  function getPrevValueForMonth(site, monthKey){
+    const prevMonthKey = getPrevMonthKey(monthKey);
+    const prevMonthReadings = loadReadings(prevMonthKey);
+    if(prevMonthReadings[site.id] && prevMonthReadings[site.id].curr !== undefined && prevMonthReadings[site.id].curr !== ""){
+      return parseFloat(prevMonthReadings[site.id].curr) || 0;
+    }
+    return site.basePrev || 0;
+  }
+  function getPrevValue(site){
+    return getPrevValueForMonth(site, currentMonthKey);
+  }
+
+  function render(){
+    const list = document.getElementById("cardList");
+    const readings = loadReadings(currentMonthKey);
+    const q = document.getElementById("searchBox").value.trim().toLowerCase();
+
+    let filtered = sites.filter(s=>{
+      if(currentFilter !== "all" && s.type !== currentFilter) return false;
+      if(q){
+        const hay = (s.group+" "+s.site+" "+s.location+" "+s.meterNo).toLowerCase();
+        if(!hay.includes(q)) return false;
+      }
+      return true;
+    });
+
+    list.innerHTML = "";
+
+    if(filtered.length === 0){
+      list.innerHTML = `<div class="empty-state">
+        <div class="emoji">📭</div>
+        <div>目前沒有符合的站點</div>
+        <button onclick="document.getElementById('addBtn').click()">新增站點</button>
+      </div>`;
+      updateSummary(readings);
+      return;
+    }
+
+    filtered.forEach(site=>{
+      const meta = TYPE_META[site.type];
+      const prevVal = getPrevValue(site);
+      const r = readings[site.id] || {curr:"", photos:[]};
+      const currVal = r.curr;
+      const usage = (currVal !== "" && currVal !== undefined) ? (parseFloat(currVal) - prevVal) : null;
+
+      const card = document.createElement("div");
+      card.className = "meter-card " + meta.cls;
+      card.innerHTML = `
+        <div class="card-top">
+          <div>
+            <span class="name-tag">${escapeHtml(site.group||"未分類")}</span>
+            <a href="#" class="edit-link" data-edit="${site.id}">修改資料</a>
+          </div>
+          <div class="usage-box">
+            <div class="lbl">用量</div>
+            <div class="val ${usage!==null && usage>0 ? 'positive':''}">${usage!==null ? formatNum(usage) : '--'}</div>
+          </div>
+        </div>
+        <div class="type-badge" data-swap="${site.id}">${meta.icon} ${meta.label} <span class="swap">🔄</span></div>
+        <div class="site-name">${escapeHtml(site.site)}</div>
+        <div class="site-meta">📍 ${escapeHtml(site.location)} ｜ 錶:${escapeHtml(site.meterNo||"--")}</div>
+
+        <div class="reading-row">
+          <div>
+            <div class="field-label"><span>上期</span>
+              <button class="lock-btn" data-unlock="${site.id}">🔒 管理修正</button>
+            </div>
+            <div class="prev-field" id="prevField_${site.id}">${formatNum(prevVal)}</div>
+          </div>
+          <div>
+            <div class="field-label"><span>本期 (限4位)</span></div>
+            <div class="curr-field" id="currFieldWrap_${site.id}">
+              <input type="number" inputmode="decimal" maxlength="4" data-curr="${site.id}"
+                value="${currVal!==undefined ? currVal : ''}" placeholder="輸入讀數">
+            </div>
+          </div>
+        </div>
+        <div class="curr-warning" id="currWarning_${site.id}"></div>
+
+        <button class="photo-btn" data-photo="${site.id}">📷 拍攝照片</button>
+        <div class="photo-preview" id="photoPreview_${site.id}"></div>
+
+        <div class="card-actions">
+          <button data-del="${site.id}" class="danger">🗑 刪除站點</button>
+        </div>
+      `;
+      list.appendChild(card);
+      updateInputWarningUI(site.id, prevVal, currVal);
+
+      if(r.photos && r.photos.length){
+        const pv = card.querySelector(`#photoPreview_${site.id}`);
+        r.photos.forEach(photo=>{
+          const img = document.createElement("img");
+          img.src = photo.url;
+          img.style.cursor = "pointer";
+          img.addEventListener("click", ()=>openPhotoViewer(photo.url));
+          pv.appendChild(img);
+        });
+      }
+    });
+
+    // bind events
+    list.querySelectorAll("[data-curr]").forEach(inp=>{
+      inp.addEventListener("input", ()=>{
+        if(inp.value.length>4) inp.value = inp.value.slice(0,4);
+        const id = inp.dataset.curr;
+        const readings2 = loadReadings(currentMonthKey);
+        if(!readings2[id]) readings2[id] = {curr:"", photos:[]};
+        readings2[id].curr = inp.value;
+        scheduleSaveCurrValue(id, currentMonthKey, inp.value);
+        updateUsageDisplay(id, inp.value);
+        updateSummary(readings2);
+        const site2 = sites.find(s=>s.id===id);
+        if(site2) updateInputWarningUI(id, getPrevValue(site2), inp.value);
+      });
+    });
+    list.querySelectorAll("[data-edit]").forEach(a=>{
+      a.addEventListener("click", e=>{ e.preventDefault(); openEditSheet(a.dataset.edit); });
+    });
+    list.querySelectorAll("[data-del]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{ deleteSite(btn.dataset.del); });
+    });
+    list.querySelectorAll("[data-unlock]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{ unlockPrev(btn.dataset.unlock, btn); });
+    });
+    list.querySelectorAll("[data-swap]").forEach(btn=>{
+      btn.addEventListener("click", (e)=>{ e.stopPropagation(); openTypePicker(btn.dataset.swap); });
+    });
+    list.querySelectorAll("[data-photo]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        currentPhotoTargetId = btn.dataset.photo;
+        document.getElementById("cameraInput").click();
+      });
+    });
+
+    updateSummary(readings);
+  }
+
+  function updateUsageDisplay(siteId, currStr){
+    const site = sites.find(s=>s.id===siteId);
+    if(!site) return;
+    const prevVal = getPrevValue(site);
+    const card = [...document.querySelectorAll(".meter-card")].find(c=>c.querySelector(`[data-curr="${siteId}"]`));
+    if(!card) return;
+    const usageEl = card.querySelector(".usage-box .val");
+    if(currStr === ""){
+      usageEl.textContent = "--";
+      usageEl.classList.remove("positive");
+    }else{
+      const usage = parseFloat(currStr) - prevVal;
+      usageEl.textContent = formatNum(usage);
+      usageEl.classList.toggle("positive", usage>0);
+    }
+  }
+
+  // ---- 本期讀數驗證：偵測輸入錯誤或異常暴增，即時提醒 ----
+  function computeInputWarning(prevVal, currStr){
+    if(currStr === "" || currStr === undefined || currStr === null) return null;
+    const val = parseFloat(currStr);
+    if(isNaN(val)){
+      return {level:"error", message:"請輸入有效的數字讀數"};
+    }
+    if(val < prevVal){
+      return {level:"error", message:`本期讀數（${formatNum(val)}）小於上期讀數（${formatNum(prevVal)}），錶數不會倒退，請確認是否輸入錯誤`};
+    }
+    const usage = val - prevVal;
+    if(prevVal > 0 && usage > prevVal * 2 && usage >= 5){
+      return {level:"caution", message:`本期用量（${formatNum(usage)}）較上期暴增，是否輸入錯誤或用量異常？請再確認一次`};
+    }
+    return null;
+  }
+
+  function updateInputWarningUI(siteId, prevVal, currStr){
+    const warnEl = document.getElementById("currWarning_"+siteId);
+    const fieldWrap = document.getElementById("currFieldWrap_"+siteId);
+    if(!warnEl || !fieldWrap) return;
+    const warning = computeInputWarning(prevVal, currStr);
+
+    fieldWrap.classList.remove("has-error","has-caution");
+    warnEl.classList.remove("show","lvl-error","lvl-caution");
+
+    const card = fieldWrap.closest(".meter-card");
+    const usageEl = card ? card.querySelector(".usage-box .val") : null;
+    if(usageEl) usageEl.classList.remove("invalid");
+
+    if(!warning){
+      warnEl.textContent = "";
+      return;
+    }
+    fieldWrap.classList.add(warning.level === "error" ? "has-error" : "has-caution");
+    warnEl.classList.add("show", warning.level === "error" ? "lvl-error" : "lvl-caution");
+    warnEl.innerHTML = `${warning.level==="error"?"⚠️":"❗"} ${escapeHtml(warning.message)}`;
+    if(usageEl && warning.level === "error") usageEl.classList.add("invalid");
+  }
+
+  function unlockPrev(siteId, btnEl){
+    const site = sites.find(s=>s.id===siteId);
+    if(!site) return;
+    const field = document.getElementById("prevField_"+siteId);
+    if(field.querySelector("input")) return;
+    const currentVal = getPrevValue(site);
+    field.classList.add("editable");
+    field.innerHTML = `<input type="number" inputmode="decimal" value="${currentVal}">`;
+    btnEl.classList.add("unlocked");
+    btnEl.textContent = "🔓 修正中";
+    const input = field.querySelector("input");
+    input.focus();
+    input.addEventListener("blur", async ()=>{
+      const v = parseFloat(input.value) || 0;
+      const prevBasePrev = site.basePrev;
+      site.basePrev = v;
+      field.classList.remove("editable");
+      field.textContent = formatNum(v);
+      btnEl.classList.remove("unlocked");
+      btnEl.textContent = "🔒 管理修正";
+      try{
+        await apiSaveSite(site);
+      }catch(e){
+        site.basePrev = prevBasePrev;
+        field.textContent = formatNum(prevBasePrev);
+        showToast(e.message || "上期讀數更新失敗");
+        return;
+      }
+      const readings = loadReadings(currentMonthKey);
+      const currStr = (readings[siteId] && readings[siteId].curr !== undefined) ? readings[siteId].curr : "";
+      updateUsageDisplay(siteId, currStr);
+      updateInputWarningUI(siteId, v, currStr);
+      updateSummary(readings);
+      showToast("上期讀數已更新");
+    });
+  }
+
+  let currentTypeTargetId = null;
+  function openTypePicker(siteId){
+    const site = sites.find(s=>s.id===siteId);
+    if(!site) return;
+    currentTypeTargetId = siteId;
+    document.querySelectorAll(".type-picker-opt").forEach(opt=>{
+      opt.classList.toggle("active", opt.dataset.picktype === site.type);
+    });
+    document.getElementById("typeOverlay").classList.add("open");
+  }
+  document.querySelectorAll(".type-picker-opt").forEach(opt=>{
+    opt.addEventListener("click", async ()=>{
+      if(!currentTypeTargetId) return;
+      const site = sites.find(s=>s.id===currentTypeTargetId);
+      if(!site) return;
+      const prevType = site.type;
+      site.type = opt.dataset.picktype;
+      document.getElementById("typeOverlay").classList.remove("open");
+      currentTypeTargetId = null;
+      render();
+      try{
+        await apiSaveSite(site);
+      }catch(e){
+        site.type = prevType;
+        showToast(e.message || "類型更新失敗");
+        render();
+      }
+    });
+  });
+  document.getElementById("typeCancelBtn").addEventListener("click", ()=>{
+    document.getElementById("typeOverlay").classList.remove("open");
+    currentTypeTargetId = null;
+  });
+  document.getElementById("typeOverlay").addEventListener("click", e=>{
+    if(e.target.id === "typeOverlay"){ e.currentTarget.classList.remove("open"); currentTypeTargetId = null; }
+  });
+
+  function deleteSite(siteId){
+    showConfirm("確定要刪除這個站點嗎？此動作無法復原。", async ()=>{
+      sites = sites.filter(s=>s.id!==siteId);
+      persistSites();
+      for(const monthKey in readingsCache){
+        const r = readingsCache[monthKey][siteId];
+        if(r){
+          for(const photo of (r.photos||[])){
+            forgetPhotoUrl(photo.id);
+            await deletePhotoBlob(photo.id);
+          }
+          delete readingsCache[monthKey][siteId];
+        }
+      }
+      persistReadings();
+      render();
+      showToast("站點已刪除");
+    }, {title:"刪除站點", okLabel:"刪除", danger:true});
+  }
+
+  function updateSummary(readings){
+    let water=0, elec=0, gas=0;
+    sites.forEach(site=>{
+      const r = readings[site.id];
+      if(!r || r.curr === "" || r.curr===undefined) return;
+      const prevVal = getPrevValue(site);
+      const usage = parseFloat(r.curr) - prevVal;
+      if(isNaN(usage)) return;
+      if(site.type==="water") water += usage;
+      else if(site.type==="elec") elec += usage;
+      else if(site.type==="gas") gas += usage;
+    });
+    document.getElementById("sumWater").textContent = formatNum(water);
+    document.getElementById("sumElec").textContent = formatNum(elec, 0);
+    document.getElementById("sumGas").textContent = formatNum(gas);
+  }
+
+  function formatNum(n, decimals){
+    if(decimals===undefined) decimals = (Number.isInteger(n) ? 0 : 1);
+    if(Number.isInteger(n)) return String(n);
+    return n.toFixed(1);
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  // ---- Modal ----
+  const overlay = document.getElementById("overlay");
+  function openAddSheet(){
+    editingSiteId = null;
+    chosenType = "water";
+    document.getElementById("sheetTitle").textContent = "新增站點";
+    document.getElementById("f_group").value = "";
+    document.getElementById("f_site").value = "";
+    document.getElementById("f_location").value = "";
+    document.getElementById("f_meterno").value = "";
+    document.getElementById("f_prev").value = "";
+    setTypeChoice("water");
+    overlay.classList.add("open");
+  }
+  function openEditSheet(siteId){
+    const site = sites.find(s=>s.id===siteId);
+    if(!site) return;
+    editingSiteId = siteId;
+    chosenType = site.type;
+    document.getElementById("sheetTitle").textContent = "修改站點資料";
+    document.getElementById("f_group").value = site.group||"";
+    document.getElementById("f_site").value = site.site||"";
+    document.getElementById("f_location").value = site.location||"";
+    document.getElementById("f_meterno").value = site.meterNo||"";
+    document.getElementById("f_prev").value = site.basePrev||0;
+    setTypeChoice(site.type);
+    overlay.classList.add("open");
+  }
+  function setTypeChoice(type){
+    chosenType = type;
+    document.querySelectorAll(".type-choice button").forEach(b=>{
+      b.classList.remove("sel-water","sel-elec","sel-gas");
+      if(b.dataset.type===type) b.classList.add("sel-"+type);
+    });
+  }
+  document.querySelectorAll(".type-choice button").forEach(b=>{
+    b.addEventListener("click", ()=>setTypeChoice(b.dataset.type));
+  });
+  document.getElementById("f_meterno").addEventListener("input", e=>{
+    const filtered = e.target.value.replace(/[^A-Za-z0-9]/g, "");
+    if(filtered !== e.target.value) e.target.value = filtered;
+  });
+  document.getElementById("cancelBtn").addEventListener("click", ()=>overlay.classList.remove("open"));
+  overlay.addEventListener("click", e=>{ if(e.target===overlay) overlay.classList.remove("open"); });
+
+  document.getElementById("confirmBtn").addEventListener("click", async ()=>{
+    const group = document.getElementById("f_group").value.trim();
+    const site = document.getElementById("f_site").value.trim();
+    const location = document.getElementById("f_location").value.trim();
+    const meterNo = document.getElementById("f_meterno").value.trim();
+    const prev = parseFloat(document.getElementById("f_prev").value) || 0;
+
+    if(!site){
+      showToast("請輸入站點名稱");
+      return;
+    }
+
+    const payload = {group, site, location, meterNo, type:chosenType, basePrev:prev};
+    const btn = document.getElementById("confirmBtn");
+    btn.disabled = true;
+    try{
+      if(editingSiteId){
+        const s = sites.find(x=>x.id===editingSiteId);
+        Object.assign(s, payload);
+        persistSites();
+        showToast("站點資料已更新");
+      }else{
+        const created = {id: crypto.randomUUID(), ...payload};
+        sites.push(created);
+        persistSites();
+        showToast("站點已新增");
+      }
+      overlay.classList.remove("open");
+      render();
+    }catch(e){
+      showToast(e.message || "儲存失敗");
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById("addBtn").addEventListener("click", openAddSheet);
+
+  // ==================== 選單（企業版功能中心） ====================
+  const menuOverlay = document.getElementById("menuOverlay");
+
+  document.getElementById("menuBtn").addEventListener("click", ()=>{
+    populateMenuStats();
+    syncDarkToggleUI();
+    menuOverlay.classList.add("open");
+  });
+  document.getElementById("menuCloseBtn").addEventListener("click", ()=>menuOverlay.classList.remove("open"));
+  menuOverlay.addEventListener("click", e=>{ if(e.target===menuOverlay) menuOverlay.classList.remove("open"); });
+
+  function populateMenuStats(){
+    const readings = loadReadings(currentMonthKey);
+    const total = sites.length;
+    let recorded = 0;
+    sites.forEach(s=>{
+      const r = readings[s.id];
+      if(r && r.curr !== "" && r.curr !== undefined) recorded++;
+    });
+    const grid = document.getElementById("menuStatsGrid");
+    grid.innerHTML = `
+      <div class="menu-stat"><div class="n">${total}</div><div class="l">站點總數</div></div>
+      <div class="menu-stat"><div class="n">${recorded}</div><div class="l">本期已抄錄</div></div>
+      <div class="menu-stat"><div class="n">${total-recorded}</div><div class="l">尚未抄錄</div></div>
+    `;
+  }
+
+  // ---- 匯出本期報表 CSV（Excel 可直接開啟）----
+  document.getElementById("mExportCsv").addEventListener("click", ()=>{
+    const readings = loadReadings(currentMonthKey);
+    const rows = [["群組","站點名稱","位置","錶號","類型","上期","本期","用量","抄錄日"]];
+    const dateStr = document.getElementById("recordDateText").textContent;
+    sites.forEach(site=>{
+      const meta = TYPE_META[site.type];
+      const prevVal = getPrevValue(site);
+      const r = readings[site.id] || {};
+      const currVal = (r.curr !== undefined && r.curr !== "") ? r.curr : "";
+      const usage = currVal !== "" ? (parseFloat(currVal) - prevVal) : "";
+      rows.push([site.group||"", site.site||"", site.location||"", site.meterNo||"", meta.label, prevVal, currVal, usage, dateStr]);
+    });
+    const csv = "\uFEFF" + rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `碧潭能源_${currentMonthKey}_抄錶報表.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("已匯出 CSV 報表");
+  });
+
+  // ---- 列印 / 匯出 PDF：開新視窗產生簡潔報表後呼叫列印 ----
+  document.getElementById("mExportPdf").addEventListener("click", ()=>{
+    const readings = loadReadings(currentMonthKey);
+    const dateStr = document.getElementById("recordDateText").textContent;
+    let tableRows = "";
+    sites.forEach(site=>{
+      const meta = TYPE_META[site.type];
+      const prevVal = getPrevValue(site);
+      const r = readings[site.id] || {};
+      const currVal = (r.curr !== undefined && r.curr !== "") ? r.curr : "--";
+      const usage = (r.curr !== undefined && r.curr !== "") ? formatNum(parseFloat(r.curr)-prevVal) : "--";
+      tableRows += `<tr>
+        <td>${escapeHtml(site.group||"")}</td>
+        <td>${escapeHtml(site.site||"")}</td>
+        <td>${escapeHtml(site.location||"")}</td>
+        <td>${escapeHtml(site.meterNo||"")}</td>
+        <td>${meta.label}</td>
+        <td style="text-align:right">${formatNum(prevVal)}</td>
+        <td style="text-align:right">${currVal}</td>
+        <td style="text-align:right;font-weight:700">${usage}</td>
+      </tr>`;
+    });
+    const printWin = window.open("", "_blank");
+    printWin.document.write(`<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8">
+      <title>碧潭能源管理系統 - ${currentMonthKey} 抄錄報表</title>
+      <style>
+        body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif; padding:32px; color:#131a2b;}
+        h1{font-size:20px; margin-bottom:2px;}
+        .sub{color:#6b7280; font-size:13px; margin-bottom:20px;}
+        table{width:100%; border-collapse:collapse; font-size:13px;}
+        th,td{border:1px solid #d8dce4; padding:8px 10px; text-align:left;}
+        th{background:#0d2140; color:#fff; font-weight:700;}
+        tr:nth-child(even){background:#f6f7fa;}
+        @media print{ body{padding:12px;} }
+      </style></head><body>
+      <h1>碧潭能源管理系統 － ${currentMonthKey} 抄錄總表</h1>
+      <div class="sub">抄錄日：${dateStr} ｜ 匯出時間：${new Date().toLocaleString("zh-TW")}</div>
+      <table>
+        <thead><tr><th>群組</th><th>站點</th><th>位置</th><th>錶號</th><th>類型</th><th>上期</th><th>本期</th><th>用量</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+      </body></html>`);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(()=>printWin.print(), 300);
+  });
+
+  // ---- 匯出完整備份 JSON（站點與各月讀數；照片只存在這台裝置，不含在備份內）----
+  document.getElementById("mExportJson").addEventListener("click", exportData);
+
+  async function exportData(){
+    try{
+      const readings = [];
+      for(const monthKey in readingsCache){
+        for(const siteId in readingsCache[monthKey]){
+          const r = readingsCache[monthKey][siteId];
+          readings.push({siteId, monthKey, curr: (r.curr===""||r.curr===undefined||r.curr===null) ? null : parseFloat(r.curr)});
+        }
+      }
+      const payload = {sites, readings, exportedAt: new Date().toISOString()};
+      const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "碧潭能源管理_完整備份.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("已匯出完整備份");
+    }catch(e){
+      showToast(e.message || "匯出失敗");
+    }
+  }
+
+  // ---- 匯入備份還原 ----
+  document.getElementById("mImportJson").addEventListener("click", ()=>{
+    document.getElementById("importFileInput").click();
+  });
+  document.getElementById("importFileInput").addEventListener("change", e=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev=>{
+      try{
+        const payload = JSON.parse(ev.target.result);
+        if(!payload.sites || !payload.readings){ throw new Error("格式不正確"); }
+        showConfirm(
+          `確定要還原備份嗎？這會覆蓋目前所有站點與抄錄紀錄（本機既有照片不受影響）。\n備份時間：${payload.exportedAt||"未知"}`,
+          async ()=>{
+            try{
+              const newCache = {};
+              (payload.readings||[]).forEach(r=>{
+                const monthKey = r.monthKey, siteId = String(r.siteId);
+                if(!newCache[monthKey]) newCache[monthKey] = {};
+                const existing = (readingsCache[monthKey] && readingsCache[monthKey][siteId]) ? readingsCache[monthKey][siteId].photos : [];
+                newCache[monthKey][siteId] = {curr: (r.curr===null||r.curr===undefined) ? "" : String(r.curr), photos: existing || []};
+              });
+              sites = (payload.sites||[]).map(s=>({...s, id:String(s.id)}));
+              readingsCache = newCache;
+              persistSites();
+              persistReadings();
+              menuOverlay.classList.remove("open");
+              render();
+              showToast("備份已還原");
+            }catch(err){
+              showToast(err.message || "還原失敗");
+            }
+          },
+          {title:"匯入備份還原", okLabel:"還原"}
+        );
+      }catch(err){
+        showToast("匯入失敗：檔案格式不正確");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  });
+
+  // ---- 深色模式 ----
+  const DARK_KEY = "biTanEnergyDarkMode_v1";
+  function applyDarkMode(on){
+    document.body.classList.toggle("dark-mode", on);
+    localStorage.setItem(DARK_KEY, on ? "1" : "0");
+  }
+  function syncDarkToggleUI(){
+    const on = localStorage.getItem(DARK_KEY) === "1";
+    document.getElementById("darkToggleSwitch").classList.toggle("on", on);
+  }
+  document.getElementById("mDarkToggle").addEventListener("click", ()=>{
+    const isOn = document.body.classList.contains("dark-mode");
+    applyDarkMode(!isOn);
+    syncDarkToggleUI();
+  });
+  applyDarkMode(localStorage.getItem(DARK_KEY) === "1");
+
+  // ---- 清除本期抄錄資料 ----
+  document.getElementById("mClearMonth").addEventListener("click", ()=>{
+    showConfirm(
+      `確定要清除「${currentMonthKey}」本期所有抄錄讀數與照片嗎？站點資料不會被刪除。`,
+      async ()=>{
+        const monthData = readingsCache[currentMonthKey] || {};
+        for(const siteId in monthData){
+          for(const photo of (monthData[siteId].photos||[])){
+            forgetPhotoUrl(photo.id);
+            await deletePhotoBlob(photo.id);
+          }
+        }
+        delete readingsCache[currentMonthKey];
+        persistReadings();
+        menuOverlay.classList.remove("open");
+        render();
+        showToast("本期抄錄資料已清除");
+      },
+      {title:"清除本期抄錄資料", okLabel:"清除", danger:true}
+    );
+  });
+
+  // ---- 清除全部資料 ----
+  document.getElementById("mClearAll").addEventListener("click", ()=>{
+    showConfirm(
+      "⚠️ 這會刪除所有站點與所有月份的抄錄紀錄，且無法復原。確定要繼續嗎？",
+      ()=>{
+        showConfirm(
+          "請再次確認：真的要清除全部資料嗎？",
+          async ()=>{
+            sites = [];
+            readingsCache = {};
+            persistSites();
+            persistReadings();
+            photoUrlCache.forEach(url=>URL.revokeObjectURL(url));
+            photoUrlCache.clear();
+            await clearAllPhotoBlobs();
+            menuOverlay.classList.remove("open");
+            render();
+            showToast("所有資料已清除");
+          },
+          {title:"最終確認", okLabel:"永久清除", danger:true}
+        );
+      },
+      {title:"清除全部資料", okLabel:"繼續", danger:true}
+    );
+  });
+  // ==================== 選單功能結束 ====================
+
+  // ==================== 圖表分析（企業版）====================
+  const chartOverlay = document.getElementById("chartOverlay");
+  let chartActiveType = "all";
+  let chartPeriodMonths = 6;
+  let chartGroupFilter = "all";
+  const CHART_COLORS = {
+    water: "#2f7bf6",
+    elec: "#f5b400",
+    gas: "#ff6a3d"
+  };
+  const CHART_LABELS = {water:"水", elec:"電", gas:"瓦斯"};
+
+  document.getElementById("chartBtn").addEventListener("click", ()=>{
+    chartActiveType = "all";
+    chartPeriodMonths = 6;
+    chartGroupFilter = "all";
+    syncChartTabsUI();
+    syncChartPeriodUI();
+    populateChartGroupFilter();
+    chartOverlay.classList.add("open");
+    renderChartPanel();
+  });
+  document.getElementById("chartCloseBtn").addEventListener("click", ()=>chartOverlay.classList.remove("open"));
+  chartOverlay.addEventListener("click", e=>{ if(e.target===chartOverlay) chartOverlay.classList.remove("open"); });
+
+  document.querySelectorAll(".chart-tab").forEach(tab=>{
+    tab.addEventListener("click", ()=>{
+      chartActiveType = tab.dataset.chartType;
+      syncChartTabsUI();
+      renderChartPanel();
+    });
+  });
+  function syncChartTabsUI(){
+    document.querySelectorAll(".chart-tab").forEach(t=>{
+      t.classList.toggle("active", t.dataset.chartType === chartActiveType);
+    });
+  }
+
+  document.querySelectorAll(".chart-period-toggle button").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      chartPeriodMonths = parseInt(btn.dataset.period, 10);
+      syncChartPeriodUI();
+      renderChartPanel();
+    });
+  });
+  function syncChartPeriodUI(){
+    document.querySelectorAll(".chart-period-toggle button").forEach(b=>{
+      b.classList.toggle("active", parseInt(b.dataset.period,10) === chartPeriodMonths);
+    });
+  }
+
+  function populateChartGroupFilter(){
+    const sel = document.getElementById("chartGroupFilter");
+    const groups = [...new Set(sites.map(s=>s.group||"未分類"))];
+    sel.innerHTML = `<option value="all">全部群組</option>` +
+      groups.map(g=>`<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join("");
+    sel.value = "all";
+  }
+  document.getElementById("chartGroupFilter").addEventListener("change", (e)=>{
+    chartGroupFilter = e.target.value;
+    renderChartPanel();
+  });
+
+  function filteredSites(){
+    return chartGroupFilter === "all" ? sites : sites.filter(s=>(s.group||"未分類")===chartGroupFilter);
+  }
+
+  // 取得往前 N 個月（含當月）的月份 key 陣列，由舊到新排序
+  function getLastNMonthKeys(endMonthKey, n){
+    const keys = [];
+    let k = endMonthKey;
+    keys.unshift(k);
+    for(let i=1;i<n;i++){
+      k = getPrevMonthKey(k);
+      keys.unshift(k);
+    }
+    return keys;
+  }
+
+  // 計算指定月份、各類型（水/電/瓦斯）的總用量（受群組篩選影響）
+  function computeMonthTotals(monthKey){
+    const readings = loadReadings(monthKey);
+    const totals = {water:0, elec:0, gas:0};
+    filteredSites().forEach(site=>{
+      const r = readings[site.id];
+      if(!r || r.curr === "" || r.curr === undefined) return;
+      const prevVal = getPrevValueForMonth(site, monthKey);
+      const usage = parseFloat(r.curr) - prevVal;
+      if(isNaN(usage)) return;
+      totals[site.type] += usage;
+    });
+    return totals;
+  }
+
+  // 計算指定站點在指定月份的用量（找不到資料回傳 null）
+  function computeSiteUsage(site, monthKey){
+    const readings = loadReadings(monthKey);
+    const r = readings[site.id];
+    if(!r || r.curr === "" || r.curr === undefined) return null;
+    const prevVal = getPrevValueForMonth(site, monthKey);
+    const usage = parseFloat(r.curr) - prevVal;
+    return isNaN(usage) ? null : usage;
+  }
+
+  function renderChartPanel(){
+    const monthKeys = getLastNMonthKeys(currentMonthKey, chartPeriodMonths);
+    const monthTotals = monthKeys.map(k=>computeMonthTotals(k));
+
+    drawUsageChart(monthKeys, monthTotals);
+    renderChartLegend();
+    renderAnomalies();
+    renderChartStats(monthKeys, monthTotals);
+    renderDonut(monthTotals[monthTotals.length-1]);
+    renderTopUsageList();
+  }
+
+  function renderChartLegend(){
+    const legend = document.getElementById("chartLegend");
+    if(chartActiveType === "all"){
+      legend.innerHTML = ["water","elec","gas"].map(t=>
+        `<span><span class="legend-dot" style="background:${CHART_COLORS[t]}"></span>${CHART_LABELS[t]}</span>`
+      ).join("");
+    }else{
+      legend.innerHTML = `<span><span class="legend-dot" style="background:${CHART_COLORS[chartActiveType]}"></span>${CHART_LABELS[chartActiveType]}用量（度）</span>`;
+    }
+  }
+
+  function drawUsageChart(monthKeys, monthTotals){
+    const canvas = document.getElementById("usageChartCanvas");
+    const wrap = canvas.parentElement;
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = wrap.clientWidth - 20; // padding compensation
+    const cssH = 190;
+    canvas.style.width = cssW + "px";
+    canvas.style.height = cssH + "px";
+    canvas.width = cssW * dpr;
+    canvas.height = cssH * dpr;
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,cssW,cssH);
+
+    const isDark = document.body.classList.contains("dark-mode");
+    const axisColor = isDark ? "#5c6684" : "#9aa3b2";
+    const labelColor = isDark ? "#aab2c8" : "#6b7280";
+
+    const types = chartActiveType === "all" ? ["water","elec","gas"] : [chartActiveType];
+    const maxVal = Math.max(1, ...monthTotals.map(mt=>Math.max(...types.map(t=>mt[t]))));
+
+    const padL = 8, padR = 8, padT = 10, padB = 24;
+    const chartW = cssW - padL - padR;
+    const chartH = cssH - padT - padB;
+    const groupCount = monthKeys.length;
+    const groupW = chartW / groupCount;
+    const barGap = types.length > 1 ? 2 : 0;
+    const barW = Math.min(groupCount>8?14:26, (groupW - 10 - barGap*(types.length-1)) / types.length);
+
+    const hasData = monthTotals.some(mt=>types.some(t=>mt[t] !== 0));
+    if(!hasData){
+      ctx.fillStyle = labelColor;
+      ctx.font = "13px -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("尚無抄錄資料可供分析", cssW/2, cssH/2);
+      return;
+    }
+
+    ctx.strokeStyle = axisColor;
+    ctx.globalAlpha = 0.4;
+    ctx.beginPath();
+    ctx.moveTo(padL, padT+chartH);
+    ctx.lineTo(padL+chartW, padT+chartH);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    monthKeys.forEach((mk, i)=>{
+      const groupX = padL + i*groupW;
+      const totalBarsW = barW*types.length + barGap*(types.length-1);
+      let startX = groupX + (groupW - totalBarsW)/2;
+
+      types.forEach(t=>{
+        const val = Math.max(0, monthTotals[i][t]);
+        const h = maxVal > 0 ? (val/maxVal) * (chartH-6) : 0;
+        const barX = startX;
+        const barY = padT + chartH - h;
+        ctx.fillStyle = CHART_COLORS[t];
+        const r = 3;
+        roundRectPath(ctx, barX, barY, barW, Math.max(h,2), r);
+        ctx.fill();
+        startX += barW + barGap;
+      });
+
+      // month label（期數多時每隔幾根才標示，避免擠成一團）
+      const skip = groupCount>8 ? (groupCount>16?3:2) : 1;
+      if(i % skip === 0 || i===groupCount-1){
+        const [, mm] = mk.split("-");
+        ctx.fillStyle = i===groupCount-1 ? (isDark?"#fff":"#131a2b") : labelColor;
+        ctx.font = (i===groupCount-1 ? "800 " : "600 ") + "10.5px -apple-system, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(mm+"月", groupX + groupW/2, cssH - 6);
+      }
+    });
+  }
+
+  function roundRectPath(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.arcTo(x+w, y, x+w, y+h, r);
+    ctx.arcTo(x+w, y+h, x, y+h, r);
+    ctx.arcTo(x, y+h, x, y, r);
+    ctx.arcTo(x, y, x+w, y, r);
+    ctx.closePath();
+  }
+
+  function renderChartStats(monthKeys, monthTotals){
+    const types = chartActiveType === "all" ? ["water","elec","gas"] : [chartActiveType];
+    const sumFor = (mt)=> types.reduce((s,t)=>s+Math.max(mt[t],0), 0);
+    const thisMonth = sumFor(monthTotals[monthTotals.length-1]);
+    const lastMonth = monthTotals.length>1 ? sumFor(monthTotals[monthTotals.length-2]) : 0;
+    const avgAll = monthTotals.reduce((s,mt)=>s+sumFor(mt),0) / monthTotals.length;
+
+    let deltaHtml = "";
+    if(lastMonth > 0){
+      const pct = ((thisMonth-lastMonth)/lastMonth)*100;
+      const dir = pct>0.5 ? "up" : pct<-0.5 ? "down" : "flat";
+      const arrow = pct>0.5 ? "▲" : pct<-0.5 ? "▼" : "－";
+      deltaHtml = `<div class="delta ${dir}">${arrow} ${Math.abs(pct).toFixed(0)}%</div>`;
+    }else{
+      deltaHtml = `<div class="delta flat">－</div>`;
+    }
+
+    const row = document.getElementById("chartStatsRow");
+    row.innerHTML = `
+      <div class="chart-stat-card">
+        <div class="n">${formatNum(thisMonth)}</div>
+        <div class="l">本期用量</div>
+        ${deltaHtml}
+      </div>
+      <div class="chart-stat-card">
+        <div class="n">${formatNum(lastMonth)}</div>
+        <div class="l">上期用量</div>
+      </div>
+      <div class="chart-stat-card">
+        <div class="n">${formatNum(avgAll)}</div>
+        <div class="l">近${chartPeriodMonths}期均量</div>
+      </div>
+    `;
+  }
+
+  // ---- 佔比圓餅圖（水/電/瓦斯）：僅在「全部」分頁顯示 ----
+  function renderDonut(latestMonthTotals){
+    const donutRow = document.getElementById("chartDonutRow");
+    if(chartActiveType !== "all"){
+      donutRow.style.display = "none";
+      return;
+    }
+    const total = latestMonthTotals.water + latestMonthTotals.elec + latestMonthTotals.gas;
+    if(total <= 0){
+      donutRow.style.display = "none";
+      return;
+    }
+    donutRow.style.display = "flex";
+
+    const canvas = document.getElementById("usageDonutCanvas");
+    const dpr = window.devicePixelRatio || 1;
+    const size = 100;
+    canvas.style.width = size+"px"; canvas.style.height = size+"px";
+    canvas.width = size*dpr; canvas.height = size*dpr;
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,size,size);
+
+    const cx = size/2, cy = size/2, rOuter = size/2-4, rInner = size/2-16;
+    let startAngle = -Math.PI/2;
+    ["water","elec","gas"].forEach(t=>{
+      const val = Math.max(0, latestMonthTotals[t]);
+      if(val<=0) return;
+      const angle = (val/total) * Math.PI*2;
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.arc(cx, cy, rOuter, startAngle, startAngle+angle);
+      ctx.closePath();
+      ctx.fillStyle = CHART_COLORS[t];
+      ctx.fill();
+      startAngle += angle;
+    });
+    // 中心挖空
+    const isDark = document.body.classList.contains("dark-mode");
+    ctx.beginPath();
+    ctx.arc(cx, cy, rInner, 0, Math.PI*2);
+    ctx.fillStyle = isDark ? "#1a2337" : "#f8f9fb";
+    ctx.fill();
+
+    const breakdown = document.getElementById("donutBreakdown");
+    breakdown.innerHTML = ["water","elec","gas"].map(t=>{
+      const val = Math.max(0, latestMonthTotals[t]);
+      const pct = total>0 ? Math.round((val/total)*100) : 0;
+      return `<div class="donut-row">
+        <span class="dot" style="background:${CHART_COLORS[t]}"></span>
+        ${CHART_LABELS[t]}用量 ${formatNum(val)}
+        <span class="pct">${pct}%</span>
+      </div>`;
+    }).join("");
+  }
+
+  // ---- 異常用量警示：本期用量較上期暴增，或讀數疑似輸入錯誤 ----
+  function renderAnomalies(){
+    const box = document.getElementById("chartAnomalyBox");
+    const types = chartActiveType === "all" ? ["water","elec","gas"] : [chartActiveType];
+    const prevMonthKey = getPrevMonthKey(currentMonthKey);
+    const alerts = [];
+
+    filteredSites().forEach(site=>{
+      if(!types.includes(site.type)) return;
+      const curUsage = computeSiteUsage(site, currentMonthKey);
+      if(curUsage === null) return;
+
+      if(curUsage < 0){
+        alerts.push({severe:true, site, text:`<b>${escapeHtml(site.site)}</b> 本期讀數比上期還低，可能是輸入錯誤或錶號有誤，請確認`});
+        return;
+      }
+      const prevUsage = computeSiteUsage(site, prevMonthKey);
+      if(prevUsage !== null && prevUsage > 0 && curUsage > prevUsage * 1.5 && (curUsage-prevUsage) >= 1){
+        const pct = Math.round(((curUsage-prevUsage)/prevUsage)*100);
+        alerts.push({severe: pct>=100, site, text:`<b>${escapeHtml(site.site)}</b> 本期用量較上期成長 <b>${pct}%</b>（${formatNum(prevUsage)} → ${formatNum(curUsage)}），建議確認是否漏水／異常用電`});
+      }
+    });
+
+    if(alerts.length===0){
+      box.innerHTML = `<div class="anomaly-ok">✅ 本期用量正常，未發現異常波動</div>`;
+      return;
+    }
+    box.innerHTML = alerts.slice(0,6).map(a=>
+      `<div class="anomaly-item ${a.severe?"severe":""}"><span class="ai-ic">${a.severe?"🚨":"⚠️"}</span><span class="ai-text">${a.text}</span></div>`
+    ).join("");
+  }
+
+  function renderTopUsageList(){
+    const types = chartActiveType === "all" ? ["water","elec","gas"] : [chartActiveType];
+    let rows = [];
+    filteredSites().forEach(site=>{
+      if(!types.includes(site.type)) return;
+      const usage = computeSiteUsage(site, currentMonthKey);
+      if(usage === null) return;
+      rows.push({site, usage});
+    });
+    rows.sort((a,b)=>b.usage-a.usage);
+    rows = rows.slice(0,5);
+
+    const list = document.getElementById("topUsageList");
+    if(rows.length===0){
+      list.innerHTML = `<div class="chart-empty">本期尚無已抄錄的用量資料</div>`;
+      return;
+    }
+    list.innerHTML = rows.map((row,i)=>{
+      const meta = TYPE_META[row.site.type];
+      return `<div class="top-usage-item">
+        <div class="rank">${i+1}</div>
+        <div class="info">
+          <div class="name">${meta.icon} ${escapeHtml(row.site.site)}</div>
+          <div class="sub">${escapeHtml(row.site.group||"")} ・ ${escapeHtml(row.site.location||"")}</div>
+        </div>
+        <div class="amt">${formatNum(row.usage)}</div>
+      </div>`;
+    }).join("");
+  }
+
+  // ---- 匯出圖表分析報告（列印 / PDF）----
+  document.getElementById("chartExportBtn").addEventListener("click", ()=>{
+    const monthKeys = getLastNMonthKeys(currentMonthKey, chartPeriodMonths);
+    const monthTotals = monthKeys.map(k=>computeMonthTotals(k));
+    const types = chartActiveType === "all" ? ["water","elec","gas"] : [chartActiveType];
+    const sumFor = (mt)=> types.reduce((s,t)=>s+Math.max(mt[t],0), 0);
+
+    const trendRows = monthKeys.map((mk,i)=>
+      `<tr><td>${mk}</td><td style="text-align:right">${formatNum(sumFor(monthTotals[i]))}</td></tr>`
+    ).join("");
+
+    let rankRows = [];
+    filteredSites().forEach(site=>{
+      if(!types.includes(site.type)) return;
+      const usage = computeSiteUsage(site, currentMonthKey);
+      if(usage === null) return;
+      rankRows.push({site, usage});
+    });
+    rankRows.sort((a,b)=>b.usage-a.usage);
+    const rankHtml = rankRows.map((r,i)=>
+      `<tr><td>${i+1}</td><td>${escapeHtml(r.site.group||"")}</td><td>${escapeHtml(r.site.site)}</td><td>${TYPE_META[r.site.type].label}</td><td style="text-align:right">${formatNum(r.usage)}</td></tr>`
+    ).join("");
+
+    const groupLabel = chartGroupFilter==="all" ? "全部群組" : chartGroupFilter;
+    const typeLabel = chartActiveType==="all" ? "水/電/瓦斯" : TYPE_META[chartActiveType].label;
+
+    const printWin = window.open("", "_blank");
+    printWin.document.write(`<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8">
+      <title>碧潭能源管理系統 - 用量趨勢分析報告</title>
+      <style>
+        body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif; padding:32px; color:#131a2b;}
+        h1{font-size:20px; margin-bottom:2px;}
+        h2{font-size:15px; margin:26px 0 10px;}
+        .sub{color:#6b7280; font-size:13px; margin-bottom:6px;}
+        table{width:100%; border-collapse:collapse; font-size:13px; margin-bottom:8px;}
+        th,td{border:1px solid #d8dce4; padding:7px 10px; text-align:left;}
+        th{background:#0d2140; color:#fff; font-weight:700;}
+        tr:nth-child(even){background:#f6f7fa;}
+        @media print{ body{padding:12px;} }
+      </style></head><body>
+      <h1>碧潭能源管理系統 － 用量趨勢分析報告</h1>
+      <div class="sub">篩選群組：${escapeHtml(groupLabel)} ｜ 類型：${typeLabel} ｜ 期間：近${chartPeriodMonths}期（至 ${currentMonthKey}）</div>
+      <div class="sub">匯出時間：${new Date().toLocaleString("zh-TW")}</div>
+
+      <h2>月度用量趨勢</h2>
+      <table><thead><tr><th>月份</th><th>總用量（度）</th></tr></thead><tbody>${trendRows}</tbody></table>
+
+      <h2>本期用量排行（依用量高至低）</h2>
+      <table><thead><tr><th>#</th><th>群組</th><th>站點</th><th>類型</th><th>用量（度）</th></tr></thead><tbody>${rankHtml || '<tr><td colspan="5" style="text-align:center;color:#9aa3b2">本期尚無已抄錄資料</td></tr>'}</tbody></table>
+      </body></html>`);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(()=>printWin.print(), 300);
+  });
+  // ==================== 圖表分析結束 ====================
+
+  // ---- Bottom nav filter ----
+  document.querySelectorAll(".nav-item[data-filter]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll(".nav-item[data-filter]").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      currentFilter = btn.dataset.filter;
+      render();
+    });
+  });
+
+  // ---- Search ----
+  document.getElementById("searchBox").addEventListener("input", render);
+
+  // ---- Save all（強制送出所有還在防抖動等待中的本期讀數）----
+  document.getElementById("saveAllBtn").addEventListener("click", ()=>{
+    flushPendingCurrSaves();
+    showToast("已儲存本期抄錶資料");
+  });
+
+  // ---- Photo capture ----
+  document.getElementById("cameraInput").addEventListener("change", async e=>{
+    const file = e.target.files[0];
+    const targetId = currentPhotoTargetId;
+    e.target.value = "";
+    if(!file || !targetId) return;
+    showToast("照片儲存中…");
+    try{
+      const id = crypto.randomUUID();
+      await savePhotoBlob(id, file, file.type);
+      const url = await resolvePhotoUrl(id);
+      const photo = {id, url};
+      const readings = loadReadings(currentMonthKey);
+      if(!readings[targetId]) readings[targetId] = {curr:"", photos:[]};
+      if(!readings[targetId].photos) readings[targetId].photos = [];
+      readings[targetId].photos.push(photo);
+      persistReadings();
+      render();
+      showToast("照片已附加");
+    }catch(err){
+      showToast(err.message || "照片儲存失敗");
+    }
+  });
+
+  // ---- Toast ----
+  let toastTimer = null;
+  function showToast(msg){
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.classList.remove("show"), 1800);
+  }
+
+  // ---- Record date default ----
+  // ---- 自訂日期選擇器（抄錄日） ----
+  let recordDate = new Date();      // 目前選定的抄錄日
+  let calViewYear = recordDate.getFullYear();
+  let calViewMonth = recordDate.getMonth(); // 0-indexed
+
+  function pad2(n){ return String(n).padStart(2,"0"); }
+  function isSameDay(a,b){
+    return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  }
+  function updateRecordDateText(){
+    const d = recordDate;
+    document.getElementById("recordDateText").textContent =
+      `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())}`;
+  }
+  function renderCalendar(){
+    document.getElementById("calMonthLabel").textContent = `${calViewYear}年${calViewMonth+1}月`;
+    const grid = document.getElementById("calGrid");
+    grid.innerHTML = "";
+    const firstOfMonth = new Date(calViewYear, calViewMonth, 1);
+    const startWeekday = firstOfMonth.getDay(); // 0=Sun
+    const daysInMonth = new Date(calViewYear, calViewMonth+1, 0).getDate();
+    const daysInPrevMonth = new Date(calViewYear, calViewMonth, 0).getDate();
+    const today = new Date();
+
+    const cells = [];
+    for(let i=startWeekday-1;i>=0;i--){
+      cells.push({day:daysInPrevMonth-i, other:true, y:calViewMonth===0?calViewYear-1:calViewYear, m:calViewMonth===0?11:calViewMonth-1});
+    }
+    for(let d=1; d<=daysInMonth; d++){
+      cells.push({day:d, other:false, y:calViewYear, m:calViewMonth});
+    }
+    let nextDay = 1;
+    while(cells.length % 7 !== 0 || cells.length < 42){
+      cells.push({day:nextDay, other:true, y:calViewMonth===11?calViewYear+1:calViewYear, m:calViewMonth===11?0:calViewMonth+1});
+      nextDay++;
+      if(cells.length>=42) break;
+    }
+
+    cells.forEach(c=>{
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cal-day" + (c.other ? " other-month" : "");
+      btn.textContent = c.day;
+      const cellDate = new Date(c.y, c.m, c.day);
+      if(isSameDay(cellDate, today)) btn.classList.add("is-today");
+      if(isSameDay(cellDate, recordDate)) btn.classList.add("is-selected");
+      btn.addEventListener("click", ()=>{
+        recordDate = cellDate;
+        updateRecordDateText();
+        document.getElementById("dateOverlay").classList.remove("open");
+      });
+      grid.appendChild(btn);
+    });
+  }
+  document.getElementById("recordDateBtn").addEventListener("click", ()=>{
+    calViewYear = recordDate.getFullYear();
+    calViewMonth = recordDate.getMonth();
+    renderCalendar();
+    document.getElementById("dateOverlay").classList.add("open");
+  });
+  document.getElementById("calPrevBtn").addEventListener("click", ()=>{
+    calViewMonth--; if(calViewMonth<0){ calViewMonth=11; calViewYear--; }
+    renderCalendar();
+  });
+  document.getElementById("calNextBtn").addEventListener("click", ()=>{
+    calViewMonth++; if(calViewMonth>11){ calViewMonth=0; calViewYear++; }
+    renderCalendar();
+  });
+  document.getElementById("calTodayBtn").addEventListener("click", ()=>{
+    recordDate = new Date();
+    updateRecordDateText();
+    document.getElementById("dateOverlay").classList.remove("open");
+  });
+  document.getElementById("calCloseBtn").addEventListener("click", ()=>{
+    document.getElementById("dateOverlay").classList.remove("open");
+  });
+  document.getElementById("dateOverlay").addEventListener("click", e=>{
+    if(e.target.id === "dateOverlay") e.currentTarget.classList.remove("open");
+  });
+  updateRecordDateText();
+
+  // ---- init ----
+  async function bootApp(){
+    buildMonthOptions();
+    try{
+      await loadSites();
+      await loadAllReadings();
+      render();
+    }catch(e){
+      showToast(e.message || "載入資料失敗，請重新整理頁面");
+    }
+  }
+  bootApp();
+})();
+</script>
+</body>
+</html>

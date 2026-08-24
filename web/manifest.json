@@ -1,0 +1,26 @@
+{
+  "name": "碧潭能源管理系統",
+  "short_name": "碧潭能源",
+  "description": "水電瓦斯抄錶、用量趨勢分析與異常警示的企業級管理工具",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d2140",
+  "theme_color": "#0d2140",
+  "lang": "zh-Hant",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
