@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.11.0">
+<meta name="desktop-app-version" content="1.12.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -233,6 +233,22 @@
   .daily-log-row .dl-delta.positive{color:var(--gold-dark);}
   .daily-log-row .dl-del{flex:0 0 auto; background:none; border:none; color:var(--danger); font-size:16px; padding:4px; cursor:pointer;}
   .daily-log-empty{text-align:center; color:var(--ink-soft); font-size:13.5px; padding:28px 0;}
+
+  .daily-nav-sheet{max-width:440px;}
+  .daily-nav-hint{font-size:13px; color:var(--ink-soft); margin:-8px 0 14px;}
+  .daily-nav-list{max-height:420px; overflow-y:auto;}
+  .daily-nav-row{
+    width:100%; display:flex; align-items:center; gap:10px;
+    background:#f8f9fb; border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; margin-bottom:8px; text-align:left; font-weight:700; color:var(--ink);
+  }
+  .daily-nav-row:last-child{margin-bottom:0;}
+  .daily-nav-row .dn-ic{font-size:18px; flex:0 0 auto;}
+  .daily-nav-row .dn-info{flex:1; min-width:0;}
+  .daily-nav-row .dn-name{font-size:14.5px;}
+  .daily-nav-row .dn-meta{font-size:11.5px; color:var(--ink-soft); font-weight:600; margin-top:1px;}
+  .daily-nav-row .dn-count{font-size:11.5px; font-weight:800; color:var(--navy-800); background:#eef1f6; padding:3px 9px; border-radius:99px; flex:0 0 auto; white-space:nowrap;}
+  .daily-nav-empty{text-align:center; color:var(--ink-soft); font-size:13.5px; padding:28px 0;}
 
   /* ===== Bottom nav ===== */
   .bottomnav{
@@ -465,6 +481,9 @@
   body.dark-mode .photo-btn, body.dark-mode .daily-log-btn{background:#141c2e; border-color:#3a4568; color:#aab2c8;}
   body.dark-mode .daily-log-row{border-color:#26304a;}
   body.dark-mode .daily-log-site{color:#8892ab;}
+  body.dark-mode .daily-nav-row{background:#1a2337; border-color:#2a3550; color:var(--ink);}
+  body.dark-mode .daily-nav-row .dn-count{background:#0d1526; color:#aab6d6;}
+  body.dark-mode .daily-nav-hint{color:#8892ab;}
   body.dark-mode .empty-state button{background:var(--navy-800);}
   body.dark-mode .bottomnav{background:#0d1526; border-top-color:#232c40;}
   body.dark-mode .nav-item{color:#5c6684;}
@@ -692,6 +711,7 @@
   <button class="nav-item" data-filter="elec"><span class="ic">⚡</span>電錶</button>
   <button class="nav-item" data-filter="gas"><span class="ic">🔥</span>瓦斯</button>
   <button class="nav-item" id="chartBtn"><span class="ic">📈</span>圖表</button>
+  <button class="nav-item" id="dailyNavBtn"><span class="ic">📅</span>每日記錄</button>
   <button class="nav-item add" id="addBtn"><span class="ic">＋</span>新增</button>
   <button class="nav-item" id="menuBtn"><span class="ic">⚙️</span>選單</button>
  </div>
@@ -907,6 +927,18 @@
     <div class="cal-footer">
       <button type="button" class="cal-today-btn" id="calTodayBtn">今天</button>
       <button type="button" class="cal-close-btn" id="calCloseBtn">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 每日記錄導覽：底部導覽列入口，先選站點再進入該站點的每日記錄 -->
+<div class="overlay" id="dailyNavOverlay">
+  <div class="sheet daily-nav-sheet">
+    <h2>📅 每日記錄</h2>
+    <div class="daily-nav-hint">選擇要查看／登錄每日記錄的站點</div>
+    <div class="daily-nav-list" id="dailyNavList"></div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="dailyNavCloseBtn">關閉</button>
     </div>
   </div>
 </div>
@@ -1575,6 +1607,45 @@
   });
   document.getElementById("dailyLogOverlay").addEventListener("click", e=>{
     if(e.target.id === "dailyLogOverlay") e.currentTarget.classList.remove("open");
+  });
+
+  // ---- 每日記錄導覽：底部導覽列入口，先選站點清單再進入該站點的每日記錄 ----
+  function renderDailyNavList(){
+    const listEl = document.getElementById("dailyNavList");
+    if(sites.length === 0){
+      listEl.innerHTML = `<div class="daily-nav-empty">尚無站點，請先新增站點</div>`;
+      return;
+    }
+    const logs = getDailyLogs();
+    listEl.innerHTML = sites.map(site=>{
+      const meta = TYPE_META[site.type];
+      const count = (logs[site.id]||[]).length;
+      return `
+        <button type="button" class="daily-nav-row" data-navtosite="${site.id}">
+          <span class="dn-ic">${meta.icon}</span>
+          <span class="dn-info">
+            <div class="dn-name">${escapeHtml(site.site)}</div>
+            <div class="dn-meta">${escapeHtml(site.group||"未分類")} ｜ ${meta.label}</div>
+          </span>
+          <span class="dn-count">${count} 筆記錄</span>
+        </button>`;
+    }).join("");
+    listEl.querySelectorAll("[data-navtosite]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        document.getElementById("dailyNavOverlay").classList.remove("open");
+        openDailyLogSheet(btn.dataset.navtosite);
+      });
+    });
+  }
+  document.getElementById("dailyNavBtn").addEventListener("click", ()=>{
+    renderDailyNavList();
+    document.getElementById("dailyNavOverlay").classList.add("open");
+  });
+  document.getElementById("dailyNavCloseBtn").addEventListener("click", ()=>{
+    document.getElementById("dailyNavOverlay").classList.remove("open");
+  });
+  document.getElementById("dailyNavOverlay").addEventListener("click", e=>{
+    if(e.target.id === "dailyNavOverlay") e.currentTarget.classList.remove("open");
   });
 
   function updateSummary(readings){
