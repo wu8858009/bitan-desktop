@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.22.0">
+<meta name="desktop-app-version" content="1.23.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -230,6 +230,12 @@
   }
   .daily-log-quickdate button.active{background:var(--navy-900); color:#fff; border-color:var(--navy-900);}
   .daily-log-hint{font-size:11.5px; color:var(--ink-soft); margin:-10px 0 16px;}
+  .daily-log-editing-badge{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:#fffbea; border:1px solid #f5d97a; border-radius:10px;
+    padding:9px 12px; margin-bottom:12px; font-size:13px; font-weight:700; color:#8a5a00;
+  }
+  .daily-log-editing-badge button{background:none; border:none; color:#8a5a00; font-weight:800; font-size:12.5px; cursor:pointer;}
   .daily-log-add-row{display:flex; gap:8px; margin-bottom:16px; align-items:stretch;}
   .daily-log-add-row input[type="date"]{
     flex:1.15; min-width:0; border:1px solid var(--line); border-radius:10px; padding:11px 10px; font-size:14px;
@@ -249,6 +255,7 @@
   .daily-log-row .dl-value{font-weight:800; font-size:15px; color:var(--ink); flex:0 0 auto;}
   .daily-log-row .dl-delta{font-size:12px; color:var(--ink-soft); flex:1;}
   .daily-log-row .dl-delta.positive{color:var(--gold-dark);}
+  .daily-log-row .dl-edit{flex:0 0 auto; background:none; border:none; font-size:15px; padding:4px; cursor:pointer;}
   .daily-log-row .dl-del{flex:0 0 auto; background:none; border:none; color:var(--danger); font-size:16px; padding:4px; cursor:pointer;}
   .daily-log-empty{text-align:center; color:var(--ink-soft); font-size:13.5px; padding:28px 0;}
 
@@ -501,6 +508,8 @@
   body.dark-mode .daily-log-row{border-color:#26304a;}
   body.dark-mode .daily-log-site{color:#8892ab;}
   body.dark-mode .daily-log-back{background:#1a2337; color:#fff;}
+  body.dark-mode .daily-log-editing-badge{background:#332a10; border-color:#5c4a1a; color:#f0c94a;}
+  body.dark-mode .daily-log-editing-badge button{color:#f0c94a;}
   body.dark-mode .daily-log-quickdate button{background:#1a2337; border-color:#2a3550; color:var(--ink);}
   body.dark-mode .daily-log-quickdate button.active{background:#fff; color:var(--navy-900); border-color:#fff;}
   body.dark-mode .daily-log-hint{color:#8892ab;}
@@ -1002,12 +1011,16 @@
         <button type="button" data-quickdate="-1">昨天</button>
         <button type="button" data-quickdate="-2">前天</button>
       </div>
+      <div class="daily-log-editing-badge" id="dailyLogEditingBadge" style="display:none;">
+        <span>✏️ 編輯中：<span id="dailyLogEditingDateText"></span> 的舊記錄</span>
+        <button type="button" id="dailyLogCancelEditBtn">✕ 取消</button>
+      </div>
       <div class="daily-log-add-row">
         <input type="date" id="dailyLogDateInput">
         <input type="number" inputmode="decimal" id="dailyLogValueInput" class="daily-log-value-input" placeholder="讀數">
         <button type="button" class="btn-confirm" id="dailyLogAddBtn">新增</button>
       </div>
-      <div class="daily-log-hint">💡 按 Enter 快速新增，新增後日期自動跳下一天，可連續補登</div>
+      <div class="daily-log-hint">💡 按 Enter 快速新增，新增後日期自動跳下一天，可連續補登；點歷史記錄的 ✏️ 可修改任何一筆舊資料</div>
     </div>
 
     <div class="daily-log-history-col">
@@ -1586,6 +1599,31 @@
   // ---- 每日記錄：單一站點可在月份週期以外，自由選日期分別登錄多筆讀數 ----
   const DAILY_LOG_KEY = "bitan_daily_logs_v1";
   let currentDailyLogSiteId = null;
+  let dailyLogEditingDate = null;
+  function setDailyLogEditingUI(dateStr){
+    dailyLogEditingDate = dateStr;
+    const badge = document.getElementById("dailyLogEditingBadge");
+    if(dateStr){
+      document.getElementById("dailyLogEditingDateText").textContent = dateStr;
+      badge.style.display = "flex";
+      document.getElementById("dailyLogAddBtn").textContent = "✓ 更新這筆記錄";
+    }else{
+      badge.style.display = "none";
+      document.getElementById("dailyLogAddBtn").textContent = "新增";
+    }
+  }
+  function cancelDailyLogEdit(){
+    setDailyLogEditingUI(null);
+    document.getElementById("dailyLogDateInput").value = dateStrOffset(0);
+    syncQuickDateUI();
+    const logs = getDailyLogs();
+    const entries = (logs[currentDailyLogSiteId] || []).slice().sort((a,b)=>a.date.localeCompare(b.date));
+    const valueInput = document.getElementById("dailyLogValueInput");
+    valueInput.value = entries.length ? entries[entries.length-1].value : "";
+    valueInput.focus();
+    valueInput.select();
+  }
+  document.getElementById("dailyLogCancelEditBtn").addEventListener("click", cancelDailyLogEdit);
   function getDailyLogs(){
     try{ return JSON.parse(localStorage.getItem(DAILY_LOG_KEY) || "{}"); }
     catch(e){ return {}; }
@@ -1619,6 +1657,7 @@
     const site = sites.find(s=>s.id===siteId);
     if(!site) return;
     currentDailyLogSiteId = siteId;
+    setDailyLogEditingUI(null);
     const meta = TYPE_META[site.type];
     document.getElementById("dailyLogSiteInfo").textContent = `${meta.icon} ${meta.label}．${site.site}｜錶:${site.meterNo||"--"}`;
     document.getElementById("dailyLogDateInput").value = dateStrOffset(0);
@@ -1657,14 +1696,30 @@
           <span class="dl-date">${entry.date}</span>
           <span class="dl-value">${formatNum(parseFloat(entry.value))}</span>
           ${deltaHtml}
+          <button type="button" class="dl-edit" data-dledit="${entry.date}" aria-label="修改這筆記錄">✏️</button>
           <button type="button" class="dl-del" data-dldelete="${entry.date}" aria-label="刪除">🗑</button>
         </div>`;
     }).join("");
+    listEl.querySelectorAll("[data-dledit]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const date = btn.dataset.dledit;
+        const entry = (getDailyLogs()[currentDailyLogSiteId]||[]).find(e=>e.date===date);
+        if(!entry) return;
+        document.getElementById("dailyLogDateInput").value = date;
+        document.getElementById("dailyLogValueInput").value = entry.value;
+        syncQuickDateUI();
+        setDailyLogEditingUI(date);
+        const valueInput = document.getElementById("dailyLogValueInput");
+        valueInput.focus();
+        valueInput.select();
+      });
+    });
     listEl.querySelectorAll("[data-dldelete]").forEach(btn=>{
       btn.addEventListener("click", ()=>{
         const logs2 = getDailyLogs();
         logs2[currentDailyLogSiteId] = (logs2[currentDailyLogSiteId]||[]).filter(e=>e.date!==btn.dataset.dldelete);
         saveDailyLogs(logs2);
+        if(dailyLogEditingDate === btn.dataset.dldelete) cancelDailyLogEdit();
         renderDailyLogList();
       });
     });
@@ -1683,13 +1738,19 @@
     saveDailyLogs(logs);
     renderDailyLogList();
     showToast(existing ? "已更新該日期讀數" : "已新增每日記錄");
-    // 連續快速輸入：日期自動跳到下一天、游標留在讀數欄，方便一口氣補登好幾天
-    document.getElementById("dailyLogDateInput").value = dateStrOffset(
-      Math.round((new Date(dateVal) - new Date(dateStrOffset(0))) / 86400000) + 1
-    );
-    syncQuickDateUI();
-    valueInput.focus();
-    valueInput.select();
+    if(dailyLogEditingDate){
+      // 修改舊資料模式：更新完直接回到一般新增模式（today），不自動跳下一天，
+      // 避免不小心蓋掉隔壁那天原本就有的資料
+      cancelDailyLogEdit();
+    }else{
+      // 連續快速輸入：日期自動跳到下一天、游標留在讀數欄，方便一口氣補登好幾天
+      document.getElementById("dailyLogDateInput").value = dateStrOffset(
+        Math.round((new Date(dateVal) - new Date(dateStrOffset(0))) / 86400000) + 1
+      );
+      syncQuickDateUI();
+      valueInput.focus();
+      valueInput.select();
+    }
   }
   document.getElementById("dailyLogAddBtn").addEventListener("click", submitDailyLogEntry);
   document.getElementById("dailyLogValueInput").addEventListener("keydown", e=>{
