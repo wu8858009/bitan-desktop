@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.23.0">
+<meta name="desktop-app-version" content="1.24.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -2180,6 +2180,7 @@
   let chartPeriodMonths = 6;
   let chartGroupFilter = "all";
   let chartDailySiteId = null;
+  let lastDailyUsageEntries = null;
   const CHART_COLORS = {
     water: "#2f7bf6",
     elec: "#f5b400",
@@ -2271,6 +2272,34 @@
     renderChartPanel();
   });
 
+  // 每日用量圖表可以直接點長條修改：算出點擊位置對應哪一根長條（哪一天），
+  // 跳去每日記錄畫面並直接進入該筆的編輯模式，不用自己再找一次
+  document.getElementById("usageChartCanvas").addEventListener("click", e=>{
+    if(chartActiveType !== "daily" || !lastDailyUsageEntries || lastDailyUsageEntries.length===0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const padL = 34, padR = 12;
+    const chartW = rect.width - padL - padR;
+    const groupCount = lastDailyUsageEntries.length;
+    const groupW = chartW / groupCount;
+    const clickX = e.clientX - rect.left;
+    if(clickX < padL || clickX > padL + chartW) return;
+    const idx = Math.min(groupCount-1, Math.max(0, Math.floor((clickX - padL) / groupW)));
+    const date = lastDailyUsageEntries[idx].date;
+    const siteId = chartDailySiteId;
+    chartOverlay.classList.remove("open");
+    openDailyLogSheet(siteId);
+    const entry = (getDailyLogs()[siteId] || []).find(en=>en.date===date);
+    if(entry){
+      document.getElementById("dailyLogDateInput").value = date;
+      document.getElementById("dailyLogValueInput").value = entry.value;
+      syncQuickDateUI();
+      setDailyLogEditingUI(date);
+      const valueInput = document.getElementById("dailyLogValueInput");
+      valueInput.focus();
+      valueInput.select();
+    }
+  });
+
   function filteredSites(){
     return chartGroupFilter === "all" ? sites : sites.filter(s=>(s.group||"未分類")===chartGroupFilter);
   }
@@ -2317,6 +2346,7 @@
       renderDailyChartPanel();
       return;
     }
+    document.getElementById("usageChartCanvas").style.cursor = "default";
     const monthKeys = getLastNMonthKeys(currentMonthKey, chartPeriodMonths);
     const monthTotals = monthKeys.map(k=>computeMonthTotals(k));
 
@@ -2335,6 +2365,8 @@
     const statsRow = document.getElementById("chartStatsRow");
     if(!site){
       drawDailyUsageChart(null);
+      lastDailyUsageEntries = null;
+      document.getElementById("usageChartCanvas").style.cursor = "default";
       legend.innerHTML = "";
       statsRow.innerHTML = "";
       return;
@@ -2349,7 +2381,11 @@
     }));
 
     drawDailyUsageChart(usageEntries, site.type);
-    legend.innerHTML = `<span><span class="legend-dot" style="background:${CHART_COLORS[site.type]}"></span>${meta.icon} ${escapeHtml(site.site)}．每日用量</span>`;
+    lastDailyUsageEntries = usageEntries;
+    document.getElementById("usageChartCanvas").style.cursor = usageEntries.length ? "pointer" : "default";
+    legend.innerHTML = usageEntries.length
+      ? `<span><span class="legend-dot" style="background:${CHART_COLORS[site.type]}"></span>${meta.icon} ${escapeHtml(site.site)}．每日用量（點長條可直接修改該筆記錄）</span>`
+      : `<span><span class="legend-dot" style="background:${CHART_COLORS[site.type]}"></span>${meta.icon} ${escapeHtml(site.site)}．每日用量</span>`;
 
     if(entries.length === 0){
       statsRow.innerHTML = `
