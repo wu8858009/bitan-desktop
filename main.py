@@ -120,9 +120,13 @@ def resource_path(relative):
 
 def initial_window_size():
     """依實際螢幕大小決定視窗尺寸，避免在較小的螢幕（如筆電常見的
-    1366x768）上視窗高度超出螢幕，導致底部導覽列被裁掉、看不到。"""
-    default_w, default_h = 480, 860
-    min_w, min_h = 380, 650
+    1366x768）上視窗高度超出螢幕，導致底部導覽列被裁掉、看不到。
+
+    介面本身是響應式設計，寬度到 700px 以上會變成雙欄卡片、1024px 以上三欄、
+    1400px 以上四欄（跟線上版桌機瀏覽時一樣）。預設用桌機尺寸開窗，讓電腦版
+    exe 一開就是電腦排版，不是手機直式那種單欄窄版。"""
+    default_w, default_h = 1280, 860
+    min_w, min_h = 760, 600
     try:
         screens = webview.screens
         if screens:
