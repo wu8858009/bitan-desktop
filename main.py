@@ -159,6 +159,7 @@ def main():
         background_color="#0d2140",
         js_api=Api(),
         screen=screen,  # 明確指定螢幕，確保視窗在該螢幕正中央開啟（含多螢幕情境）
+        maximized=True,  # 一開就自動放大到最大化，width/height 只是還原（取消最大化）時的尺寸
     )
     # private_mode=False + storage_path：讓 localStorage / IndexedDB（照片）
     # 實際寫入本機 data 資料夾並長期保存，而不是每次啟動都清空的無痕模式。
