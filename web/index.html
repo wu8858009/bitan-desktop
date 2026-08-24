@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.20.0">
+<meta name="desktop-app-version" content="1.21.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -229,15 +229,27 @@
     padding:7px 0; font-size:12.5px; font-weight:700; color:var(--ink-soft);
   }
   .daily-log-quickdate button.active{background:var(--navy-900); color:#fff; border-color:var(--navy-900);}
-  .daily-log-hint{font-size:11.5px; color:var(--ink-soft); margin:-10px 0 16px;}
-  .daily-log-add-row{display:flex; gap:8px; margin-bottom:16px;}
+  .daily-log-hint{font-size:11.5px; color:var(--ink-soft); margin:0 0 16px;}
+  .daily-log-add-row{display:flex; gap:8px; margin-bottom:14px;}
   .daily-log-add-row input{
-    border:1px solid var(--line); border-radius:10px; padding:11px 10px; font-size:14px;
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:11px 10px; font-size:14px;
     font-family:inherit; background:#fbfcfe; min-width:0; outline:none;
   }
-  .daily-log-add-row input[type="date"]{flex:1.15;}
-  .daily-log-add-row input[type="number"]{flex:1;}
-  .daily-log-add-row .btn-confirm{flex:0 0 auto; padding:0 18px; border-radius:10px; font-size:13.5px;}
+  .digit-wheel{display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap;}
+  .digit-cell{
+    display:flex; flex-direction:column; align-items:center;
+    background:#fff; border:1px solid var(--line); border-radius:10px; overflow:hidden;
+  }
+  .digit-cell .dc-btn{
+    width:100%; background:#f1f3f7; border:none; color:var(--ink-soft);
+    font-size:11px; padding:4px 0; line-height:1; cursor:pointer; font-family:inherit;
+  }
+  .digit-cell .dc-btn:active{background:#e3e7ee;}
+  .digit-cell .dc-num{
+    width:34px; text-align:center; font-size:24px; font-weight:800; color:var(--ink);
+    padding:6px 0; font-variant-numeric:tabular-nums; background:#fbfcfe;
+  }
+  .daily-log-submit{width:100%; padding:13px 0; border-radius:10px; font-size:14.5px; margin-bottom:10px;}
   .daily-log-list{max-height:340px; overflow-y:auto;}
   .daily-log-row{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);}
   .daily-log-row:last-child{border-bottom:none;}
@@ -496,6 +508,9 @@
   body.dark-mode .daily-log-row{border-color:#26304a;}
   body.dark-mode .daily-log-site{color:#8892ab;}
   body.dark-mode .daily-log-back{background:#1a2337; color:#fff;}
+  body.dark-mode .digit-cell{background:#1a2337; border-color:#2a3550;}
+  body.dark-mode .digit-cell .dc-btn{background:#141c2e; color:#aab2c8;}
+  body.dark-mode .digit-cell .dc-num{background:#1a2337; color:#fff;}
   body.dark-mode .daily-log-quickdate button{background:#1a2337; border-color:#2a3550; color:var(--ink);}
   body.dark-mode .daily-log-quickdate button.active{background:#fff; color:var(--navy-900); border-color:#fff;}
   body.dark-mode .daily-log-hint{color:#8892ab;}
@@ -999,10 +1014,11 @@
       </div>
       <div class="daily-log-add-row">
         <input type="date" id="dailyLogDateInput">
-        <input type="number" inputmode="decimal" id="dailyLogValueInput" placeholder="讀數">
-        <button type="button" class="btn-confirm" id="dailyLogAddBtn">新增</button>
       </div>
-      <div class="daily-log-hint">💡 按 Enter 快速新增，新增後日期自動跳下一天，可連續補登</div>
+      <div class="digit-wheel" id="dailyLogValueWheel"></div>
+      <input type="hidden" id="dailyLogValueInput">
+      <button type="button" class="btn-confirm daily-log-submit" id="dailyLogAddBtn">✓ 新增這筆記錄</button>
+      <div class="daily-log-hint">💡 點每一位數字上／下方箭頭轉動調整，新增後日期自動跳下一天，可連續補登</div>
     </div>
 
     <div class="daily-log-history-col">
@@ -1588,6 +1604,43 @@
   function saveDailyLogs(logs){
     localStorage.setItem(DAILY_LOG_KEY, JSON.stringify(logs));
   }
+  // 轉盤式數字輸入：每一位數字獨立一格，點上／下箭頭轉動調整（像實體水電表數字輪）
+  let dailyLogWheel = null;
+  function createDigitWheel(containerEl, digitCount, initialValueStr, onChange){
+    let digits = String(initialValueStr||"0").replace(/[^0-9]/g,"").padStart(digitCount,"0").slice(-digitCount).split("").map(Number);
+    function render(){
+      containerEl.innerHTML = digits.map((d,i)=>`
+        <div class="digit-cell">
+          <button type="button" class="dc-btn dc-up" data-idx="${i}" aria-label="加一">▲</button>
+          <div class="dc-num">${d}</div>
+          <button type="button" class="dc-btn dc-down" data-idx="${i}" aria-label="減一">▼</button>
+        </div>`).join("");
+      containerEl.querySelectorAll(".dc-up").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const i = parseInt(btn.dataset.idx,10);
+          digits[i] = (digits[i]+1)%10;
+          render();
+          onChange(digits.join(""));
+        });
+      });
+      containerEl.querySelectorAll(".dc-down").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const i = parseInt(btn.dataset.idx,10);
+          digits[i] = (digits[i]+9)%10;
+          render();
+          onChange(digits.join(""));
+        });
+      });
+    }
+    render();
+    return {
+      setValue(valueStr){
+        digits = String(valueStr||"0").replace(/[^0-9]/g,"").padStart(digitCount,"0").slice(-digitCount).split("").map(Number);
+        render();
+      },
+      getValue(){ return digits.join(""); }
+    };
+  }
   function dateStrOffset(daysOffset){
     const d = new Date();
     d.setDate(d.getDate() + (daysOffset||0));
@@ -1604,9 +1657,6 @@
     btn.addEventListener("click", ()=>{
       document.getElementById("dailyLogDateInput").value = dateStrOffset(parseInt(btn.dataset.quickdate,10));
       syncQuickDateUI();
-      const valueInput = document.getElementById("dailyLogValueInput");
-      valueInput.focus();
-      valueInput.select();
     });
   });
   document.getElementById("dailyLogDateInput").addEventListener("change", syncQuickDateUI);
@@ -1618,16 +1668,17 @@
     document.getElementById("dailyLogSiteInfo").textContent = `${meta.icon} ${meta.label}．${site.site}｜錶:${site.meterNo||"--"}`;
     document.getElementById("dailyLogDateInput").value = dateStrOffset(0);
     syncQuickDateUI();
-    const valueInput = document.getElementById("dailyLogValueInput");
-    // 快速輸入：帶入最近一筆讀數當起始值，通常只需微調幾碼，不用整串重打
+    // 快速輸入：帶入最近一筆讀數當起始值，轉動輪盤微調幾碼就好，不用整串重打
     const logs = getDailyLogs();
     const entries = (logs[siteId] || []).slice().sort((a,b)=>a.date.localeCompare(b.date));
-    valueInput.value = entries.length ? entries[entries.length-1].value : "";
-    valueInput.maxLength = getDigitLimits()[site.type] || 5;
+    const digitLimit = getDigitLimits()[site.type] || 5;
+    const startVal = entries.length ? entries[entries.length-1].value : "0";
+    document.getElementById("dailyLogValueInput").value = startVal;
+    dailyLogWheel = createDigitWheel(document.getElementById("dailyLogValueWheel"), digitLimit, startVal, newVal=>{
+      document.getElementById("dailyLogValueInput").value = newVal;
+    });
     renderDailyLogList();
     document.getElementById("dailyLogOverlay").classList.add("open");
-    valueInput.focus();
-    valueInput.select();
   }
   function renderDailyLogList(){
     const logs = getDailyLogs();
@@ -1665,8 +1716,7 @@
   }
   function submitDailyLogEntry(){
     const dateVal = document.getElementById("dailyLogDateInput").value;
-    const valueInput = document.getElementById("dailyLogValueInput");
-    const valueVal = valueInput.value;
+    const valueVal = document.getElementById("dailyLogValueInput").value;
     if(!dateVal){ showToast("請選擇日期"); return; }
     if(valueVal === "" || isNaN(parseFloat(valueVal))){ showToast("請輸入讀數"); return; }
     const logs = getDailyLogs();
@@ -1677,16 +1727,14 @@
     saveDailyLogs(logs);
     renderDailyLogList();
     showToast(existing ? "已更新該日期讀數" : "已新增每日記錄");
-    // 連續快速輸入：日期自動跳到下一天、游標留在讀數欄，方便一口氣補登好幾天
+    // 連續快速輸入：日期自動跳到下一天，轉盤數字維持原樣當下一筆的起始值，方便一口氣補登好幾天
     document.getElementById("dailyLogDateInput").value = dateStrOffset(
       Math.round((new Date(dateVal) - new Date(dateStrOffset(0))) / 86400000) + 1
     );
     syncQuickDateUI();
-    valueInput.focus();
-    valueInput.select();
   }
   document.getElementById("dailyLogAddBtn").addEventListener("click", submitDailyLogEntry);
-  document.getElementById("dailyLogValueInput").addEventListener("keydown", e=>{
+  document.getElementById("dailyLogDateInput").addEventListener("keydown", e=>{
     if(e.key === "Enter") submitDailyLogEntry();
   });
   document.getElementById("dailyLogBackBtn").addEventListener("click", ()=>{
