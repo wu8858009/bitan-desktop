@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.8.0">
+<meta name="desktop-app-version" content="1.9.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -533,6 +533,19 @@
   @media (min-width:700px){
     .overlay{align-items:center;}
     .sheet{max-width:480px; border-radius:20px; max-height:84vh;}
+  }
+
+  /* --- 電腦版排版：系統選單改寬版雙欄，跟桌機卡片格線一致的企業版風格 --- */
+  @media (min-width:1024px){
+    .menu-sheet{
+      max-width:760px; padding:28px 32px calc(28px + env(safe-area-inset-bottom));
+      display:grid; grid-template-columns:1fr 1fr; column-gap:24px; align-items:start;
+    }
+    .menu-sheet h2,
+    .menu-sheet .menu-stats-grid,
+    .menu-sheet .sheet-actions,
+    .menu-sheet .menu-version{grid-column:1 / -1;}
+    .menu-sheet h2{font-size:22px;}
   }
 
   /* --- 短螢幕高度（例如橫向手機）：讓彈出視窗可完整捲動 --- */
