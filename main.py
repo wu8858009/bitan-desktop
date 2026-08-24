@@ -118,6 +118,24 @@ def resource_path(relative):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative)
 
 
+def index_url():
+    """回傳 index.html 路徑，並帶上依檔案內容算出的雜湊當查詢參數。
+
+    data_dir（storage_path）跨版本沿用同一個 WebView2 設定檔，Chromium 對
+    file:// 也會用磁碟快取；曾實際發生過使用者更新到新版 exe，畫面卻還是
+    讀到舊版快取內容的狀況（新版 exe 裡的 index.html 明明是對的）。用內容
+    雜湊當查詢字串，內容一變網址就變，強迫換版時一定是快取未命中。"""
+    path = resource_path("web/index.html")
+    try:
+        import hashlib
+
+        with open(path, "rb") as f:
+            digest = hashlib.md5(f.read()).hexdigest()[:12]
+    except Exception:
+        digest = str(int(os.path.getmtime(path)))
+    return f"{path}?v={digest}"
+
+
 def initial_window_size():
     """依實際螢幕大小決定視窗尺寸與置中位置，讓視窗大致佔滿螢幕的 85%（保留
     一些邊界，不做成滿版全螢幕），並在該螢幕正中央開啟；避免在較小的螢幕
@@ -152,7 +170,7 @@ def main():
     width, height, min_w, min_h, screen = initial_window_size()
     webview.create_window(
         "碧潭能源管理系統",
-        resource_path("web/index.html"),
+        index_url(),
         width=width,
         height=height,
         min_size=(min_w, min_h),
