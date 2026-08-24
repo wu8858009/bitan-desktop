@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.18.0">
+<meta name="desktop-app-version" content="1.19.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -2267,7 +2267,7 @@
     const legend = document.getElementById("chartLegend");
     const statsRow = document.getElementById("chartStatsRow");
     if(!site){
-      drawDailyChart(null);
+      drawDailyUsageChart(null);
       legend.innerHTML = "";
       statsRow.innerHTML = "";
       return;
@@ -2275,15 +2275,20 @@
     const meta = TYPE_META[site.type];
     const logs = getDailyLogs();
     const entries = (logs[site.id] || []).slice().sort((a,b)=>a.date.localeCompare(b.date));
+    // 每日「用量」＝相鄰兩筆讀數的差，歸在後面那筆的日期底下（第一筆是起點，沒有用量可算）
+    const usageEntries = entries.slice(1).map((e,i)=>({
+      date: e.date,
+      usage: parseFloat(e.value) - parseFloat(entries[i].value)
+    }));
 
-    drawDailyChart(entries, site.type);
-    legend.innerHTML = `<span><span class="legend-dot" style="background:${CHART_COLORS[site.type]}"></span>${meta.icon} ${escapeHtml(site.site)}．每日讀數</span>`;
+    drawDailyUsageChart(usageEntries, site.type);
+    legend.innerHTML = `<span><span class="legend-dot" style="background:${CHART_COLORS[site.type]}"></span>${meta.icon} ${escapeHtml(site.site)}．每日用量</span>`;
 
     if(entries.length === 0){
       statsRow.innerHTML = `
         <div class="chart-stat-card"><div class="n">0</div><div class="l">記錄筆數</div></div>
-        <div class="chart-stat-card"><div class="n">--</div><div class="l">最新讀數</div></div>
-        <div class="chart-stat-card"><div class="n">--</div><div class="l">平均日用量</div></div>
+        <div class="chart-stat-card"><div class="n">--</div><div class="l">最新用量</div></div>
+        <div class="chart-stat-card"><div class="n">--</div><div class="l">平均每日用量</div></div>
       `;
       return;
     }
@@ -2292,15 +2297,16 @@
     const totalUsage = parseFloat(latest.value) - parseFloat(first.value);
     const daySpan = Math.max(1, (new Date(latest.date) - new Date(first.date)) / 86400000);
     const avgPerDay = entries.length > 1 ? totalUsage / daySpan : 0;
+    const latestUsage = usageEntries.length ? usageEntries[usageEntries.length-1].usage : null;
     statsRow.innerHTML = `
       <div class="chart-stat-card"><div class="n">${entries.length}</div><div class="l">記錄筆數</div></div>
-      <div class="chart-stat-card"><div class="n">${formatNum(parseFloat(latest.value))}</div><div class="l">最新讀數（${latest.date.slice(5)}）</div></div>
+      <div class="chart-stat-card"><div class="n">${latestUsage!==null ? formatNum(latestUsage) : '--'}</div><div class="l">最新用量（${latest.date.slice(5)}）</div></div>
       <div class="chart-stat-card"><div class="n">${formatNum(avgPerDay)}</div><div class="l">平均每日用量</div></div>
     `;
   }
 
-  // 專業折線圖：平滑曲線、漸層填色、資料點、格線與座標標籤
-  function drawDailyChart(entries, siteType){
+  // 專業長條圖：把每日記錄轉成用量（相鄰兩筆讀數的差），呈現方式跟月結用量圖一致
+  function drawDailyUsageChart(usageEntries, siteType){
     const canvas = document.getElementById("usageChartCanvas");
     const wrap = canvas.parentElement;
     const dpr = window.devicePixelRatio || 1;
@@ -2319,21 +2325,19 @@
     const labelColor = isDark ? "#aab2c8" : "#6b7280";
     const gridColor = isDark ? "rgba(255,255,255,.08)" : "rgba(20,30,60,.06)";
 
-    if(!entries || entries.length === 0){
+    if(!usageEntries || usageEntries.length === 0){
       ctx.fillStyle = labelColor;
       ctx.font = "13px -apple-system, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("尚無每日記錄，請至站點卡片新增", cssW/2, cssH/2);
+      ctx.fillText("至少需要 2 筆每日記錄才能算出用量", cssW/2, cssH/2);
       return;
     }
 
     const color = CHART_COLORS[siteType] || "#2f7bf6";
-    const values = entries.map(e=>parseFloat(e.value));
-    const minVal = Math.min(...values);
-    const maxVal = Math.max(...values);
-    const valRange = Math.max(1, maxVal - minVal);
+    const values = usageEntries.map(e=>Math.max(0, e.usage));
+    const maxVal = Math.max(1, ...values);
 
-    const padL = 40, padR = 12, padT = 16, padB = 26;
+    const padL = 34, padR = 12, padT = 20, padB = 26;
     const chartW = cssW - padL - padR;
     const chartH = cssH - padT - padB;
 
@@ -2344,7 +2348,7 @@
     ctx.fillStyle = labelColor;
     for(let i=0;i<=gridLines;i++){
       const y = padT + (chartH/gridLines)*i;
-      const val = maxVal - (valRange/gridLines)*i;
+      const val = maxVal - (maxVal/gridLines)*i;
       ctx.strokeStyle = gridColor;
       ctx.beginPath();
       ctx.moveTo(padL, y);
@@ -2353,71 +2357,35 @@
       ctx.fillText(formatNum(val), padL-8, y+3);
     }
 
-    // 資料點座標
-    const points = entries.map((e,i)=>{
-      const x = entries.length===1 ? padL+chartW/2 : padL + (chartW/(entries.length-1))*i;
-      const y = padT + chartH - ((values[i]-minVal)/valRange)*chartH;
-      return {x, y};
-    });
+    const groupCount = usageEntries.length;
+    const groupW = chartW / groupCount;
+    const barW = Math.min(groupCount>10?18:36, groupW - 8);
 
-    // 平滑曲線路徑（Catmull-Rom 轉貝茲，比直線折線更專業清晰）
-    function smoothPath(pts){
-      ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      if(pts.length===1){ return; }
-      for(let i=0;i<pts.length-1;i++){
-        const p0 = pts[i===0?0:i-1], p1 = pts[i], p2 = pts[i+1], p3 = pts[Math.min(i+2,pts.length-1)];
-        const cp1x = p1.x + (p2.x-p0.x)/6, cp1y = p1.y + (p2.y-p0.y)/6;
-        const cp2x = p2.x - (p3.x-p1.x)/6, cp2y = p2.y - (p3.y-p1.y)/6;
-        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-      }
-    }
-
-    // 漸層填色區域
-    smoothPath(points);
-    ctx.lineTo(points[points.length-1].x, padT+chartH);
-    ctx.lineTo(points[0].x, padT+chartH);
-    ctx.closePath();
-    const gradient = ctx.createLinearGradient(0, padT, 0, padT+chartH);
-    gradient.addColorStop(0, color + "33");
-    gradient.addColorStop(1, color + "02");
-    ctx.fillStyle = gradient;
-    ctx.fill();
-
-    // 折線本體
-    smoothPath(points);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2.5;
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-    ctx.stroke();
-
-    // 資料點（最新一筆特別放大並標數值）
-    points.forEach((p,i)=>{
-      const isLast = i===points.length-1;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, isLast?4.5:3, 0, Math.PI*2);
-      ctx.fillStyle = "#fff";
+    usageEntries.forEach((e,i)=>{
+      const val = Math.max(0, e.usage);
+      const h = maxVal>0 ? (val/maxVal) * (chartH-6) : 0;
+      const isLast = i===groupCount-1;
+      const groupX = padL + i*groupW;
+      const barX = groupX + (groupW-barW)/2;
+      const barY = padT + chartH - h;
+      ctx.fillStyle = isLast ? color : color + "99";
+      roundRectPath(ctx, barX, barY, barW, Math.max(h,2), 4);
       ctx.fill();
-      ctx.lineWidth = isLast?2.5:2;
-      ctx.strokeStyle = color;
-      ctx.stroke();
+
       if(isLast){
         ctx.fillStyle = isDark ? "#fff" : "#131a2b";
         ctx.font = "800 12px -apple-system, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(formatNum(values[i]), p.x, p.y-12);
+        ctx.fillText(formatNum(e.usage), groupX+groupW/2, barY-8);
       }
-    });
 
-    // X 軸日期標籤（資料點多時每隔幾個才標示，避免擠成一團）
-    ctx.font = "600 10px -apple-system, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillStyle = labelColor;
-    const skip = entries.length>10 ? Math.ceil(entries.length/6) : 1;
-    entries.forEach((e,i)=>{
-      if(i % skip === 0 || i===entries.length-1){
-        ctx.fillText(e.date.slice(5), points[i].x, cssH-6);
+      // X 軸日期標籤（資料多時每隔幾個才標示，避免擠成一團）
+      const skip = groupCount>10 ? Math.ceil(groupCount/6) : 1;
+      if(i % skip === 0 || isLast){
+        ctx.fillStyle = isLast ? (isDark?"#fff":"#131a2b") : labelColor;
+        ctx.font = (isLast?"800 ":"600 ") + "10px -apple-system, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(e.date.slice(5), groupX+groupW/2, cssH-6);
       }
     });
 
