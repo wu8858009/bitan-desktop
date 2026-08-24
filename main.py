@@ -119,14 +119,16 @@ def resource_path(relative):
 
 
 def initial_window_size():
-    """依實際螢幕大小決定視窗尺寸，避免在較小的螢幕（如筆電常見的
-    1366x768）上視窗高度超出螢幕，導致底部導覽列被裁掉、看不到。
+    """依實際螢幕大小決定視窗尺寸與置中位置，讓視窗大致佔滿螢幕的 85%（保留
+    一些邊界，不做成滿版全螢幕），並在該螢幕正中央開啟；避免在較小的螢幕
+    （如筆電常見的 1366x768）上視窗尺寸超出螢幕，導致內容被裁掉、看不到。
 
     介面本身是響應式設計，寬度到 700px 以上會變成雙欄卡片、1024px 以上三欄、
-    1400px 以上四欄（跟線上版桌機瀏覽時一樣）。預設用桌機尺寸開窗，讓電腦版
-    exe 一開就是電腦排版，不是手機直式那種單欄窄版。"""
-    default_w, default_h = 1280, 860
+    1400px 以上四欄（跟線上版桌機瀏覽時一樣）。視窗跟著螢幕大小走，才能真正
+    套用電腦版排版，不是固定小尺寸的手機直式單欄窄版。"""
     min_w, min_h = 760, 600
+    default_w, default_h = 1280, 860  # 抓不到螢幕資訊時的備用尺寸
+    screen = None
     try:
         screens = webview.screens
         if screens:
@@ -134,18 +136,20 @@ def initial_window_size():
             # 預留工作列、視窗邊框與標題列的空間
             usable_w = screen.width - 60
             usable_h = screen.height - 90
-            default_w = max(min_w, min(default_w, usable_w))
-            default_h = max(min_h, min(default_h, usable_h))
+            target_w = int(screen.width * 0.85)
+            target_h = int(screen.height * 0.85)
+            default_w = max(min_w, min(target_w, usable_w))
+            default_h = max(min_h, min(target_h, usable_h))
     except Exception:
         pass
-    return default_w, default_h, min_w, min_h
+    return default_w, default_h, min_w, min_h, screen
 
 
 def main():
     data_dir = os.path.join(base_path(), "data")
     os.makedirs(data_dir, exist_ok=True)
 
-    width, height, min_w, min_h = initial_window_size()
+    width, height, min_w, min_h, screen = initial_window_size()
     webview.create_window(
         "碧潭能源管理系統",
         resource_path("web/index.html"),
@@ -154,6 +158,7 @@ def main():
         min_size=(min_w, min_h),
         background_color="#0d2140",
         js_api=Api(),
+        screen=screen,  # 明確指定螢幕，確保視窗在該螢幕正中央開啟（含多螢幕情境）
     )
     # private_mode=False + storage_path：讓 localStorage / IndexedDB（照片）
     # 實際寫入本機 data 資料夾並長期保存，而不是每次啟動都清空的無痕模式。
