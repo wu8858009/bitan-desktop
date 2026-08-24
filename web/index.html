@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.10.0">
+<meta name="desktop-app-version" content="1.11.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -200,8 +200,9 @@
   .curr-warning.lvl-error{background:#fff1ef; color:var(--danger);}
   .curr-warning.lvl-caution{background:#fff8ea; color:#8a5a00;}
 
-  .photo-btn{
-    width:100%; margin-top:10px; background:#fff; border:2px dashed #c7cede; border-radius:10px;
+  .card-btn-row{display:flex; gap:8px; margin-top:10px;}
+  .photo-btn, .daily-log-btn{
+    flex:1; background:#fff; border:2px dashed #c7cede; border-radius:10px;
     padding:12px; text-align:center; color:#5c6478; font-weight:700; font-size:13.5px;
     display:flex; align-items:center; justify-content:center; gap:6px;
   }
@@ -211,6 +212,27 @@
   .card-actions{display:flex; justify-content:flex-end; gap:12px; margin-top:10px; padding-top:10px; border-top:1px solid var(--line);}
   .card-actions button{background:none; border:none; color:var(--ink-soft); font-size:12px; font-weight:700; display:flex; align-items:center; gap:4px;}
   .card-actions button.danger{color:var(--danger);}
+
+  /* ===== 每日記錄 ===== */
+  .daily-log-sheet{max-width:440px;}
+  .daily-log-site{font-size:13.5px; font-weight:700; color:var(--ink-soft); margin:-8px 0 14px;}
+  .daily-log-add-row{display:flex; gap:8px; margin-bottom:16px;}
+  .daily-log-add-row input{
+    border:1px solid var(--line); border-radius:10px; padding:11px 10px; font-size:14px;
+    font-family:inherit; background:#fbfcfe; min-width:0; outline:none;
+  }
+  .daily-log-add-row input[type="date"]{flex:1.15;}
+  .daily-log-add-row input[type="number"]{flex:1;}
+  .daily-log-add-row .btn-confirm{flex:0 0 auto; padding:0 18px; border-radius:10px; font-size:13.5px;}
+  .daily-log-list{max-height:340px; overflow-y:auto;}
+  .daily-log-row{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);}
+  .daily-log-row:last-child{border-bottom:none;}
+  .daily-log-row .dl-date{font-weight:800; font-size:13.5px; color:var(--ink); flex:0 0 auto; width:84px;}
+  .daily-log-row .dl-value{font-weight:800; font-size:15px; color:var(--ink); flex:0 0 auto;}
+  .daily-log-row .dl-delta{font-size:12px; color:var(--ink-soft); flex:1;}
+  .daily-log-row .dl-delta.positive{color:var(--gold-dark);}
+  .daily-log-row .dl-del{flex:0 0 auto; background:none; border:none; color:var(--danger); font-size:16px; padding:4px; cursor:pointer;}
+  .daily-log-empty{text-align:center; color:var(--ink-soft); font-size:13.5px; padding:28px 0;}
 
   /* ===== Bottom nav ===== */
   .bottomnav{
@@ -420,6 +442,7 @@
   body.dark-mode .curr-field input,
   body.dark-mode .form-group input,
   body.dark-mode .form-group select,
+  body.dark-mode .daily-log-add-row input,
   body.dark-mode .lock-btn,
   body.dark-mode .cal-nav-btn,
   body.dark-mode .btn-cancel,
@@ -439,7 +462,9 @@
   body.dark-mode .menu-stat .n{color:#fff;}
   body.dark-mode .prev-field input{color:var(--ink);}
   body.dark-mode .search-input::placeholder{color:#5c6684;}
-  body.dark-mode .photo-btn{background:#141c2e; border-color:#3a4568; color:#aab2c8;}
+  body.dark-mode .photo-btn, body.dark-mode .daily-log-btn{background:#141c2e; border-color:#3a4568; color:#aab2c8;}
+  body.dark-mode .daily-log-row{border-color:#26304a;}
+  body.dark-mode .daily-log-site{color:#8892ab;}
   body.dark-mode .empty-state button{background:var(--navy-800);}
   body.dark-mode .bottomnav{background:#0d1526; border-top-color:#232c40;}
   body.dark-mode .nav-item{color:#5c6684;}
@@ -886,6 +911,26 @@
   </div>
 </div>
 
+<!-- 每日記錄：單一站點在月份以外，可自由選日期分別登錄多筆讀數 -->
+<div class="overlay" id="dailyLogOverlay">
+  <div class="sheet daily-log-sheet">
+    <h2>📅 每日記錄</h2>
+    <div class="daily-log-site" id="dailyLogSiteInfo"></div>
+
+    <div class="daily-log-add-row">
+      <input type="date" id="dailyLogDateInput">
+      <input type="number" inputmode="decimal" id="dailyLogValueInput" placeholder="讀數">
+      <button type="button" class="btn-confirm" id="dailyLogAddBtn">新增</button>
+    </div>
+
+    <div class="daily-log-list" id="dailyLogList"></div>
+
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="dailyLogCloseBtn">關閉</button>
+    </div>
+  </div>
+</div>
+
 <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
 <div class="toast" id="toast"></div>
 
@@ -1231,7 +1276,10 @@
         </div>
         <div class="curr-warning" id="currWarning_${site.id}"></div>
 
-        <button class="photo-btn" data-photo="${site.id}">📷 拍攝照片</button>
+        <div class="card-btn-row">
+          <button class="photo-btn" data-photo="${site.id}">📷 拍攝照片</button>
+          <button class="daily-log-btn" data-dailylog="${site.id}">📅 每日記錄</button>
+        </div>
         <div class="photo-preview" id="photoPreview_${site.id}"></div>
 
         <div class="card-actions">
@@ -1286,6 +1334,9 @@
         currentPhotoTargetId = btn.dataset.photo;
         document.getElementById("cameraInput").click();
       });
+    });
+    list.querySelectorAll("[data-dailylog]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{ openDailyLogSheet(btn.dataset.dailylog); });
     });
 
     updateSummary(readings);
@@ -1441,6 +1492,90 @@
       showToast("站點已刪除");
     }, {title:"刪除站點", okLabel:"刪除", danger:true});
   }
+
+  // ---- 每日記錄：單一站點可在月份週期以外，自由選日期分別登錄多筆讀數 ----
+  const DAILY_LOG_KEY = "bitan_daily_logs_v1";
+  let currentDailyLogSiteId = null;
+  function getDailyLogs(){
+    try{ return JSON.parse(localStorage.getItem(DAILY_LOG_KEY) || "{}"); }
+    catch(e){ return {}; }
+  }
+  function saveDailyLogs(logs){
+    localStorage.setItem(DAILY_LOG_KEY, JSON.stringify(logs));
+  }
+  function todayDateStr(){
+    const d = new Date();
+    const pad = n=>String(n).padStart(2,"0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+  function openDailyLogSheet(siteId){
+    const site = sites.find(s=>s.id===siteId);
+    if(!site) return;
+    currentDailyLogSiteId = siteId;
+    const meta = TYPE_META[site.type];
+    document.getElementById("dailyLogSiteInfo").textContent = `${meta.icon} ${meta.label}．${site.site}`;
+    document.getElementById("dailyLogDateInput").value = todayDateStr();
+    const valueInput = document.getElementById("dailyLogValueInput");
+    valueInput.value = "";
+    valueInput.maxLength = getDigitLimits()[site.type] || 5;
+    renderDailyLogList();
+    document.getElementById("dailyLogOverlay").classList.add("open");
+  }
+  function renderDailyLogList(){
+    const logs = getDailyLogs();
+    const entries = (logs[currentDailyLogSiteId] || []).slice().sort((a,b)=>a.date.localeCompare(b.date));
+    const listEl = document.getElementById("dailyLogList");
+    if(entries.length===0){
+      listEl.innerHTML = `<div class="daily-log-empty">尚無每日記錄，新增第一筆吧</div>`;
+      return;
+    }
+    listEl.innerHTML = entries.slice().reverse().map((entry, idxFromEnd)=>{
+      const idx = entries.length - 1 - idxFromEnd;
+      const prevEntry = idx > 0 ? entries[idx-1] : null;
+      let deltaHtml = `<span class="dl-delta">首筆記錄</span>`;
+      if(prevEntry){
+        const delta = parseFloat(entry.value) - parseFloat(prevEntry.value);
+        const sign = delta > 0 ? "+" : "";
+        deltaHtml = `<span class="dl-delta ${delta>0?'positive':''}">較 ${prevEntry.date} ${sign}${formatNum(delta)}</span>`;
+      }
+      return `
+        <div class="daily-log-row">
+          <span class="dl-date">${entry.date}</span>
+          <span class="dl-value">${formatNum(parseFloat(entry.value))}</span>
+          ${deltaHtml}
+          <button type="button" class="dl-del" data-dldelete="${entry.date}" aria-label="刪除">🗑</button>
+        </div>`;
+    }).join("");
+    listEl.querySelectorAll("[data-dldelete]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const logs2 = getDailyLogs();
+        logs2[currentDailyLogSiteId] = (logs2[currentDailyLogSiteId]||[]).filter(e=>e.date!==btn.dataset.dldelete);
+        saveDailyLogs(logs2);
+        renderDailyLogList();
+      });
+    });
+  }
+  document.getElementById("dailyLogAddBtn").addEventListener("click", ()=>{
+    const dateVal = document.getElementById("dailyLogDateInput").value;
+    const valueVal = document.getElementById("dailyLogValueInput").value;
+    if(!dateVal){ showToast("請選擇日期"); return; }
+    if(valueVal === "" || isNaN(parseFloat(valueVal))){ showToast("請輸入讀數"); return; }
+    const logs = getDailyLogs();
+    const list = logs[currentDailyLogSiteId] || (logs[currentDailyLogSiteId] = []);
+    const existing = list.find(e=>e.date===dateVal);
+    if(existing) existing.value = valueVal;
+    else list.push({date:dateVal, value:valueVal});
+    saveDailyLogs(logs);
+    document.getElementById("dailyLogValueInput").value = "";
+    renderDailyLogList();
+    showToast(existing ? "已更新該日期讀數" : "已新增每日記錄");
+  });
+  document.getElementById("dailyLogCloseBtn").addEventListener("click", ()=>{
+    document.getElementById("dailyLogOverlay").classList.remove("open");
+  });
+  document.getElementById("dailyLogOverlay").addEventListener("click", e=>{
+    if(e.target.id === "dailyLogOverlay") e.currentTarget.classList.remove("open");
+  });
 
   function updateSummary(readings){
     let water=0, elec=0, gas=0;
