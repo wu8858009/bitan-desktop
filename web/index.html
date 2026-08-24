@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.9.0">
+<meta name="desktop-app-version" content="1.10.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -546,6 +546,15 @@
     .menu-sheet .sheet-actions,
     .menu-sheet .menu-version{grid-column:1 / -1;}
     .menu-sheet h2{font-size:22px;}
+
+    /* 圖表：左側主圖表、右側統計/排行側欄，桌機儀表板式排版 */
+    .chart-sheet{
+      max-width:980px; padding:28px 32px calc(28px + env(safe-area-inset-bottom));
+      display:grid; grid-template-columns:1.6fr 1fr; column-gap:28px; align-items:start;
+    }
+    .chart-sheet h2, .chart-sheet .sheet-actions{grid-column:1 / -1;}
+    .chart-sheet h2{font-size:22px;}
+    .chart-sheet .chart-canvas-wrap{min-height:320px;}
   }
 
   /* --- 短螢幕高度（例如橫向手機）：讓彈出視窗可完整捲動 --- */
@@ -707,40 +716,44 @@
   <div class="sheet chart-sheet">
     <h2>用量趨勢分析 <span class="menu-pro-badge">PRO</span></h2>
 
-    <div class="chart-filter-row">
-      <select class="chart-filter-select" id="chartGroupFilter">
-        <option value="all">全部群組</option>
-      </select>
-      <div class="chart-period-toggle">
-        <button type="button" class="active" data-period="6">近6期</button>
-        <button type="button" data-period="12">近12期</button>
+    <div class="chart-main-col">
+      <div class="chart-filter-row">
+        <select class="chart-filter-select" id="chartGroupFilter">
+          <option value="all">全部群組</option>
+        </select>
+        <div class="chart-period-toggle">
+          <button type="button" class="active" data-period="6">近6期</button>
+          <button type="button" data-period="12">近12期</button>
+        </div>
+      </div>
+
+      <div class="chart-tabs">
+        <button type="button" class="chart-tab active" data-chart-type="all">全部</button>
+        <button type="button" class="chart-tab" data-chart-type="water">💧 水</button>
+        <button type="button" class="chart-tab" data-chart-type="elec">⚡ 電</button>
+        <button type="button" class="chart-tab" data-chart-type="gas">🔥 瓦斯</button>
+      </div>
+
+      <div class="chart-canvas-wrap">
+        <canvas id="usageChartCanvas"></canvas>
+        <div class="chart-legend" id="chartLegend"></div>
       </div>
     </div>
 
-    <div class="chart-tabs">
-      <button type="button" class="chart-tab active" data-chart-type="all">全部</button>
-      <button type="button" class="chart-tab" data-chart-type="water">💧 水</button>
-      <button type="button" class="chart-tab" data-chart-type="elec">⚡ 電</button>
-      <button type="button" class="chart-tab" data-chart-type="gas">🔥 瓦斯</button>
+    <div class="chart-side-col">
+      <div class="menu-section-title">異常用量警示</div>
+      <div class="chart-anomaly-box" id="chartAnomalyBox"></div>
+
+      <div class="chart-stats-row" id="chartStatsRow"></div>
+
+      <div class="chart-donut-row" id="chartDonutRow">
+        <canvas id="usageDonutCanvas" width="110" height="110"></canvas>
+        <div class="donut-breakdown" id="donutBreakdown"></div>
+      </div>
+
+      <div class="menu-section-title">本期用量排行</div>
+      <div class="top-usage-list" id="topUsageList"></div>
     </div>
-
-    <div class="chart-canvas-wrap">
-      <canvas id="usageChartCanvas"></canvas>
-      <div class="chart-legend" id="chartLegend"></div>
-    </div>
-
-    <div class="menu-section-title">異常用量警示</div>
-    <div class="chart-anomaly-box" id="chartAnomalyBox"></div>
-
-    <div class="chart-stats-row" id="chartStatsRow"></div>
-
-    <div class="chart-donut-row" id="chartDonutRow">
-      <canvas id="usageDonutCanvas" width="110" height="110"></canvas>
-      <div class="donut-breakdown" id="donutBreakdown"></div>
-    </div>
-
-    <div class="menu-section-title">本期用量排行</div>
-    <div class="top-usage-list" id="topUsageList"></div>
 
     <div class="sheet-actions">
       <button class="btn-cancel" id="chartExportBtn">📄 匯出報告</button>
