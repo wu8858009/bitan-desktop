@@ -546,9 +546,34 @@
   @media (prefers-reduced-motion:reduce){
     *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
   }
+
+  /* ===== Splash Screen ===== */
+  .splash-screen{
+    position:fixed; inset:0; z-index:9999;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(160deg,var(--navy-950),var(--navy-900) 60%,var(--navy-800));
+    transition:opacity .45s ease, visibility .45s ease;
+  }
+  .splash-screen.hide{opacity:0; visibility:hidden; pointer-events:none;}
+  .splash-inner{display:flex; flex-direction:column; align-items:center; gap:14px; animation:splashIn .6s ease;}
+  .splash-logo{width:84px; height:84px; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.35);}
+  .splash-title{color:#fff; font-size:22px; font-weight:800; margin:0; letter-spacing:.5px;}
+  .splash-badge{background:var(--gold); color:#3a2900; font-weight:800; font-size:12px; padding:5px 14px; border-radius:999px; letter-spacing:1px;}
+  .splash-spinner{width:28px; height:28px; border-radius:50%; border:3px solid rgba(255,255,255,.25); border-top-color:var(--gold); animation:splashSpin .8s linear infinite; margin-top:6px;}
+  @keyframes splashSpin{to{transform:rotate(360deg);}}
+  @keyframes splashIn{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
 </style>
 </head>
 <body>
+
+<div id="splashScreen" class="splash-screen">
+  <div class="splash-inner">
+    <img src="icons/icon-192.png" alt="" class="splash-logo">
+    <h1 class="splash-title">碧潭能源管理系統</h1>
+    <div class="splash-badge">企業版 PRO</div>
+    <div class="splash-spinner"></div>
+  </div>
+</div>
 
 <div class="topbar">
  <div class="topbar-inner">
@@ -1109,9 +1134,9 @@
             <div class="prev-field" id="prevField_${site.id}">${formatNum(prevVal)}</div>
           </div>
           <div>
-            <div class="field-label"><span>本期 (限4位)</span></div>
+            <div class="field-label"><span>本期 (限5位)</span></div>
             <div class="curr-field" id="currFieldWrap_${site.id}">
-              <input type="number" inputmode="decimal" maxlength="4" data-curr="${site.id}"
+              <input type="number" inputmode="decimal" maxlength="5" data-curr="${site.id}"
                 value="${currVal!==undefined ? currVal : ''}" placeholder="輸入讀數">
             </div>
           </div>
@@ -1143,7 +1168,7 @@
     // bind events
     list.querySelectorAll("[data-curr]").forEach(inp=>{
       inp.addEventListener("input", ()=>{
-        if(inp.value.length>4) inp.value = inp.value.slice(0,4);
+        if(inp.value.length>5) inp.value = inp.value.slice(0,5);
         const id = inp.dataset.curr;
         const readings2 = loadReadings(currentMonthKey);
         if(!readings2[id]) readings2[id] = {curr:"", photos:[]};
@@ -2229,7 +2254,14 @@
   updateRecordDateText();
 
   // ---- init ----
+  function hideSplash(){
+    const el = document.getElementById("splashScreen");
+    if(!el) return;
+    el.classList.add("hide");
+    setTimeout(()=>el.remove(), 500);
+  }
   async function bootApp(){
+    const splashStart = Date.now();
     buildMonthOptions();
     try{
       await loadSites();
@@ -2237,6 +2269,9 @@
       render();
     }catch(e){
       showToast(e.message || "載入資料失敗，請重新整理頁面");
+    }finally{
+      const minShow = 550;
+      setTimeout(hideSplash, Math.max(0, minShow - (Date.now() - splashStart)));
     }
   }
   bootApp();
