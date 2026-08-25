@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.26.0">
+<meta name="desktop-app-version" content="1.26.1">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -1132,9 +1132,14 @@
   }
   async function savePhotoBlob(id, blob, contentType){
     const db = await openPhotoDb();
+    // 有些相機拍照來源（例如系統相機 App 直接帶入的檔案）blob.type 會是空字串，
+    // 存進 IndexedDB 後用 URL.createObjectURL 產生的網址會因為沒有正確的圖片
+    // MIME type 而顯示失敗（圖片壞掉的圖示）。這裡強制補上一個圖片 type 確保能顯示。
+    const type = contentType || blob.type || "image/jpeg";
+    const storedBlob = blob.type === type ? blob : new Blob([blob], {type});
     return new Promise((resolve, reject)=>{
       const tx = db.transaction("photos", "readwrite");
-      tx.objectStore("photos").put({id, blob, contentType});
+      tx.objectStore("photos").put({id, blob: storedBlob, contentType: type});
       tx.oncomplete = ()=>resolve();
       tx.onerror = ()=>reject(tx.error);
     });
@@ -1638,6 +1643,7 @@
     previewEl.innerHTML = photos.filter(p=>p.url).map(p=>`<img src="${p.url}" data-viewphoto="${p.url}">`).join("");
     previewEl.querySelectorAll("[data-viewphoto]").forEach(img=>{
       img.addEventListener("click", ()=>openPhotoViewer(img.dataset.viewphoto));
+      img.addEventListener("error", ()=>img.remove(), {once:true});
     });
   }
   document.getElementById("dailyLogPhotoBtn").addEventListener("click", ()=>{
@@ -1768,6 +1774,7 @@
     }).join("");
     listEl.querySelectorAll("[data-viewphoto]").forEach(img=>{
       img.addEventListener("click", ()=>openPhotoViewer(img.dataset.viewphoto));
+      img.addEventListener("error", ()=>img.remove(), {once:true});
     });
     listEl.querySelectorAll("[data-dledit]").forEach(btn=>{
       btn.addEventListener("click", ()=>{
