@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.26.2">
+<meta name="desktop-app-version" content="1.26.3">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -1062,7 +1062,7 @@
 </div>
 
 <!-- 自訂確認彈窗（取代瀏覽器原生 confirm/alert，避免部分環境阻擋跳出視窗） -->
-<div class="overlay" id="confirmOverlay">
+<div class="overlay" id="confirmOverlay" style="z-index:300;">
   <div class="sheet confirm-sheet">
     <h2 id="confirmTitle">請確認</h2>
     <p class="confirm-message" id="confirmMessage"></p>
