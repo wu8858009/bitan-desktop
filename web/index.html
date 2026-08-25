@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.26.1">
+<meta name="desktop-app-version" content="1.26.2">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -266,6 +266,10 @@
   .daily-log-row .dl-edit{flex:0 0 auto; background:none; border:none; font-size:15px; padding:4px; cursor:pointer;}
   .daily-log-row .dl-del{flex:0 0 auto; background:none; border:none; color:var(--danger); font-size:16px; padding:4px; cursor:pointer;}
   .daily-log-empty{text-align:center; color:var(--ink-soft); font-size:13.5px; padding:28px 0;}
+  .photo-viewer-actions{display:none; position:absolute; bottom:28px; left:50%; transform:translateX(-50%); gap:12px;}
+  .photo-viewer-actions.show{display:flex;}
+  .pv-action-btn{border:none; border-radius:999px; padding:10px 18px; font-size:14px; font-weight:700; cursor:pointer; background:rgba(255,255,255,.92); color:var(--ink);}
+  .pv-action-btn.pv-delete{background:var(--danger); color:#fff;}
 
   .daily-nav-sheet{max-width:440px;}
   .daily-nav-hint{font-size:13px; color:var(--ink-soft); margin:-8px 0 14px;}
@@ -1051,6 +1055,10 @@
 <div class="overlay" id="photoViewerOverlay" style="z-index:250; align-items:center;">
   <img id="photoViewerImg" alt="照片放大檢視" style="max-width:92vw; max-height:86vh; border-radius:10px; object-fit:contain;">
   <button type="button" id="photoViewerCloseBtn" aria-label="關閉" style="position:absolute; top:16px; right:16px; width:40px; height:40px; border-radius:50%; border:none; background:rgba(255,255,255,.15); color:#fff; font-size:22px; line-height:1; cursor:pointer;">✕</button>
+  <div class="photo-viewer-actions" id="photoViewerActions">
+    <button type="button" class="pv-action-btn" id="photoViewerReplaceBtn">🔄 更換照片</button>
+    <button type="button" class="pv-action-btn pv-delete" id="photoViewerDeleteBtn">🗑 刪除照片</button>
+  </div>
 </div>
 
 <!-- 自訂確認彈窗（取代瀏覽器原生 confirm/alert，避免部分環境阻擋跳出視窗） -->
@@ -1188,17 +1196,37 @@
     photoUrlCache.delete(id);
   }
 
-  // ---- 照片放大檢視 ----
-  function openPhotoViewer(url){
+  // ---- 照片放大檢視（可選帶入 onDelete / onReplace 讓這張照片可以修改或刪除）----
+  let photoViewerCallbacks = null;
+  function openPhotoViewer(url, opts){
     document.getElementById("photoViewerImg").src = url;
     document.getElementById("photoViewerOverlay").classList.add("open");
+    photoViewerCallbacks = opts || null;
+    document.getElementById("photoViewerReplaceBtn").style.display = (opts && opts.onReplace) ? "" : "none";
+    document.getElementById("photoViewerDeleteBtn").style.display = (opts && opts.onDelete) ? "" : "none";
+    document.getElementById("photoViewerActions").classList.toggle("show", !!(opts && (opts.onReplace || opts.onDelete)));
   }
   function closePhotoViewer(){
     document.getElementById("photoViewerOverlay").classList.remove("open");
+    photoViewerCallbacks = null;
   }
   document.getElementById("photoViewerCloseBtn").addEventListener("click", closePhotoViewer);
   document.getElementById("photoViewerOverlay").addEventListener("click", e=>{
     if(e.target.id === "photoViewerOverlay") closePhotoViewer();
+  });
+  document.getElementById("photoViewerDeleteBtn").addEventListener("click", ()=>{
+    const cb = photoViewerCallbacks;
+    if(!cb || !cb.onDelete) return;
+    showConfirm("確定要刪除這張照片嗎？", async ()=>{
+      await cb.onDelete();
+      closePhotoViewer();
+      showToast("照片已刪除");
+    }, {title:"刪除照片", okLabel:"刪除", danger:true});
+  });
+  document.getElementById("photoViewerReplaceBtn").addEventListener("click", ()=>{
+    const cb = photoViewerCallbacks;
+    if(!cb || !cb.onReplace) return;
+    cb.onReplace();
   });
 
   // ---- 自訂確認彈窗（取代原生 confirm，避免在受限預覽環境被封鎖） ----
@@ -1619,6 +1647,25 @@
   let dailyLogPendingPhotoDate = null;
   let dailyLogStagedPhotos = [];
   let dailyLogStagedDate = null;
+  let dailyLogReplaceContext = null; // 更換照片時記錄要換掉哪一張：{photoId, isStaged, date}
+  function deleteDailyLogPhoto(photoId, isStaged, date){
+    return async ()=>{
+      if(isStaged){
+        dailyLogStagedPhotos = dailyLogStagedPhotos.filter(p=>p.id!==photoId);
+      }else{
+        const logs = getDailyLogs();
+        const entry = (logs[currentDailyLogSiteId] || []).find(en=>en.date===date);
+        if(entry && entry.photos){
+          entry.photos = entry.photos.filter(p=>p.id!==photoId);
+          saveDailyLogs(logs);
+        }
+      }
+      await deletePhotoBlob(photoId);
+      forgetPhotoUrl(photoId);
+      renderDailyLogList();
+      refreshDailyLogPhotos();
+    };
+  }
   async function refreshDailyLogPhotos(){
     const dateVal = document.getElementById("dailyLogDateInput").value;
     const logs = getDailyLogs();
@@ -1639,10 +1686,18 @@
       }
       photos = dailyLogStagedPhotos;
     }
+    const isStaged = !entry;
     const previewEl = document.getElementById("dailyLogPhotoPreview");
-    previewEl.innerHTML = photos.filter(p=>p.url).map(p=>`<img src="${p.url}" data-viewphoto="${p.url}">`).join("");
+    previewEl.innerHTML = photos.filter(p=>p.url).map(p=>`<img src="${p.url}" data-viewphoto="${p.url}" data-photoid="${p.id}">`).join("");
     previewEl.querySelectorAll("[data-viewphoto]").forEach(img=>{
-      img.addEventListener("click", ()=>openPhotoViewer(img.dataset.viewphoto));
+      const photoId = img.dataset.photoid;
+      img.addEventListener("click", ()=>openPhotoViewer(img.dataset.viewphoto, {
+        onDelete: deleteDailyLogPhoto(photoId, isStaged, dateVal),
+        onReplace: ()=>{
+          dailyLogReplaceContext = {photoId, isStaged, date: dateVal};
+          document.getElementById("cameraInput").click();
+        }
+      }));
       img.addEventListener("error", ()=>img.remove(), {once:true});
     });
   }
@@ -1761,7 +1816,7 @@
         const sign = delta > 0 ? "+" : "";
         deltaHtml = `<span class="dl-delta ${delta>0?'positive':''}">較 ${prevEntry.date} ${sign}${formatNum(delta)}</span>`;
       }
-      const photosHtml = (entry.photos||[]).filter(p=>p.url).map(p=>`<img class="dl-thumb" data-viewphoto="${p.url}" src="${p.url}">`).join("");
+      const photosHtml = (entry.photos||[]).filter(p=>p.url).map(p=>`<img class="dl-thumb" data-viewphoto="${p.url}" data-photoid="${p.id}" data-entrydate="${entry.date}" src="${p.url}">`).join("");
       return `
         <div class="daily-log-row">
           <span class="dl-date">${entry.date}</span>
@@ -1773,7 +1828,15 @@
         </div>`;
     }).join("");
     listEl.querySelectorAll("[data-viewphoto]").forEach(img=>{
-      img.addEventListener("click", ()=>openPhotoViewer(img.dataset.viewphoto));
+      const photoId = img.dataset.photoid;
+      const date = img.dataset.entrydate;
+      img.addEventListener("click", ()=>openPhotoViewer(img.dataset.viewphoto, {
+        onDelete: deleteDailyLogPhoto(photoId, false, date),
+        onReplace: ()=>{
+          dailyLogReplaceContext = {photoId, isStaged:false, date};
+          document.getElementById("cameraInput").click();
+        }
+      }));
       img.addEventListener("error", ()=>img.remove(), {once:true});
     });
     listEl.querySelectorAll("[data-dledit]").forEach(btn=>{
@@ -2921,9 +2984,42 @@
     const file = e.target.files[0];
     const targetId = currentPhotoTargetId;
     const dailyDate = dailyLogPendingPhotoDate;
+    const replaceCtx = dailyLogReplaceContext;
     dailyLogPendingPhotoDate = null;
+    dailyLogReplaceContext = null;
     e.target.value = "";
     if(!file) return;
+
+    if(replaceCtx){
+      // 更換每日記錄裡的某一張照片：存新的照片、把舊照片從資料與 IndexedDB 都刪掉
+      showToast("照片更換中…");
+      try{
+        const newId = crypto.randomUUID();
+        await savePhotoBlob(newId, file, file.type);
+        const newUrl = await resolvePhotoUrl(newId);
+        if(replaceCtx.isStaged){
+          const idx = dailyLogStagedPhotos.findIndex(p=>p.id===replaceCtx.photoId);
+          if(idx>-1) dailyLogStagedPhotos[idx] = {id:newId, url:newUrl};
+        }else{
+          const logs = getDailyLogs();
+          const entry = (logs[currentDailyLogSiteId] || []).find(en=>en.date===replaceCtx.date);
+          if(entry && entry.photos){
+            const idx = entry.photos.findIndex(p=>p.id===replaceCtx.photoId);
+            if(idx>-1) entry.photos[idx] = {id:newId, url:newUrl};
+            saveDailyLogs(logs);
+          }
+          renderDailyLogList();
+        }
+        await deletePhotoBlob(replaceCtx.photoId);
+        forgetPhotoUrl(replaceCtx.photoId);
+        refreshDailyLogPhotos();
+        closePhotoViewer(); // 放大檢視裡顯示的是舊照片網址，換完就已失效，直接關閉避免看到壞圖
+        showToast("照片已更換");
+      }catch(err){
+        showToast(err.message || "照片更換失敗");
+      }
+      return;
+    }
 
     if(dailyDate !== null){
       // 每日記錄的照片：已存在的紀錄直接存進去，還沒送出的新紀錄先暫存等送出再一起存
