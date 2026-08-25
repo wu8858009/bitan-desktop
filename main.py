@@ -29,6 +29,7 @@ if sys.platform == "win32":
 import shutil
 import subprocess
 import tempfile
+import time
 import urllib.request
 import webbrowser
 
@@ -114,6 +115,19 @@ class Api:
         return {"pending": True, "target": target}
 
     def quit_app(self):
+        """關閉程式（目前只有自動更新流程會呼叫，關閉後由批次檔套用新版 exe）。
+
+        原本直接 os._exit(0) 是硬殺行程，WebView2 的 IndexedDB（含每日記錄/
+        月結讀數的照片）寫入完成（transaction oncomplete）不等於已經真正落盤，
+        硬殺可能讓剛存的照片來不及寫進磁碟就消失。改成先正常關閉視窗，讓
+        WebView2 走它自己的關閉流程把資料落盤，再等一小段緩衝時間，最後才
+        os._exit 確保行程真的結束（批次檔要等行程消失才會覆蓋 exe）。"""
+        try:
+            if webview.windows:
+                webview.windows[0].destroy()
+        except Exception:
+            pass
+        time.sleep(0.6)
         os._exit(0)
 
 

@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.26.4">
+<meta name="desktop-app-version" content="1.26.5">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -1146,7 +1146,9 @@
     const type = contentType || blob.type || "image/jpeg";
     const storedBlob = blob.type === type ? blob : new Blob([blob], {type});
     return new Promise((resolve, reject)=>{
-      const tx = db.transaction("photos", "readwrite");
+      // durability:"strict" 強制等資料真的落盤才算完成，避免瀏覽器預設的
+      // 「先回報完成、之後才真正寫入磁碟」造成軟體關閉太快時照片遺失。
+      const tx = db.transaction("photos", "readwrite", {durability:"strict"});
       tx.objectStore("photos").put({id, blob: storedBlob, contentType: type});
       tx.oncomplete = ()=>resolve();
       tx.onerror = ()=>reject(tx.error);
