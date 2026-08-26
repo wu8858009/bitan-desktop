@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.1">
+<meta name="desktop-app-version" content="1.27.2">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -1275,14 +1275,30 @@
     cb.onReplace();
   });
 
-  // ---- 報表列印／匯出 PDF：直接對目前這個視窗列印，而不是開新視窗
-  // （pywebview 桌面版沒有處理 window.open 的新視窗請求，開新視窗印報表
-  // 不可靠）。列印對話框裡選「Microsoft Print to PDF」就能存成 PDF 檔。
-  function printReportHtml(title, bodyHtml){
+  // ---- 報表匯出 PDF ----
+  // 電腦版：直接呼叫 Python 那邊用 WebView2 內建的 PrintToPdfAsync 存檔，
+  // 不透過列印對話框——不會有瀏覽器自動加的網址/日期/頁碼頁首頁尾，也不用
+  // 使用者每次手動關閉那個選項。線上版（沒有這個 bridge）則退回瀏覽器內建
+  // 列印（window.open 開新視窗在 pywebview 桌面版不可靠，改對目前視窗列印）。
+  function printReportHtml(title, bodyHtml, suggestedFileName){
     const area = document.getElementById("printReportArea");
     const prevTitle = document.title;
     area.innerHTML = bodyHtml;
     document.title = title;
+    if(window.pywebview && window.pywebview.api && window.pywebview.api.export_report_pdf){
+      showToast("正在產生 PDF…");
+      const fileName = suggestedFileName || (title.replace(/[\\/:*?"<>|]/g,"") + ".pdf");
+      window.pywebview.api.export_report_pdf(fileName)
+        .then(res=>{
+          showToast((res && res.ok) ? "PDF 已儲存並開啟" : ((res && res.error) || "PDF 匯出失敗"));
+        })
+        .catch(()=>{ showToast("PDF 匯出失敗"); })
+        .finally(()=>{
+          document.title = prevTitle;
+          area.innerHTML = "";
+        });
+      return;
+    }
     const cleanup = ()=>{
       document.title = prevTitle;
       area.innerHTML = "";
@@ -2234,7 +2250,7 @@
       <table>
         <thead><tr><th>群組</th><th>站點</th><th>位置</th><th>錶號</th><th>類型</th><th>上期</th><th>本期</th><th>用量</th></tr></thead>
         <tbody>${tableRows}</tbody>
-      </table>`);
+      </table>`, `抄錄報表_${currentMonthKey}.pdf`);
   });
 
   // ---- 匯出完整備份 JSON（站點與各月讀數；照片只存在這台裝置，不含在備份內）----
@@ -2992,7 +3008,7 @@
       printReportHtml(`碧潭能源管理系統 - ${site.site} 每日用量報告`, `
         <h1>碧潭能源管理系統 － ${meta.icon} ${escapeHtml(site.site)} 每日用量報告</h1>
         <div class="sub">錶號：${escapeHtml(site.meterNo||"--")} ｜ 匯出時間：${new Date().toLocaleString("zh-TW")}</div>
-        <table><thead><tr><th>日期</th><th>讀數</th><th>用量</th></tr></thead><tbody>${rows || '<tr><td colspan="3" style="text-align:center;color:#9aa3b2">尚無每日記錄</td></tr>'}</tbody></table>`);
+        <table><thead><tr><th>日期</th><th>讀數</th><th>用量</th></tr></thead><tbody>${rows || '<tr><td colspan="3" style="text-align:center;color:#9aa3b2">尚無每日記錄</td></tr>'}</tbody></table>`, `${site.site}_每日用量報告.pdf`);
       return;
     }
     const monthKeys = getLastNMonthKeys(currentMonthKey, chartPeriodMonths);
@@ -3028,7 +3044,7 @@
       <table><thead><tr><th>月份</th><th>總用量（度）</th></tr></thead><tbody>${trendRows}</tbody></table>
 
       <h2>本期用量排行（依用量高至低）</h2>
-      <table><thead><tr><th>#</th><th>群組</th><th>站點</th><th>類型</th><th>用量（度）</th></tr></thead><tbody>${rankHtml || '<tr><td colspan="5" style="text-align:center;color:#9aa3b2">本期尚無已抄錄資料</td></tr>'}</tbody></table>`);
+      <table><thead><tr><th>#</th><th>群組</th><th>站點</th><th>類型</th><th>用量（度）</th></tr></thead><tbody>${rankHtml || '<tr><td colspan="5" style="text-align:center;color:#9aa3b2">本期尚無已抄錄資料</td></tr>'}</tbody></table>`, `用量趨勢分析報告_${currentMonthKey}.pdf`);
   });
   // ==================== 圖表分析結束 ====================
 
