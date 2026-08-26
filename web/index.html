@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.12">
+<meta name="desktop-app-version" content="1.27.13">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -1458,7 +1458,8 @@
   function render(){
     const list = document.getElementById("cardList");
     const readings = loadReadings(currentMonthKey);
-    const q = document.getElementById("searchBox").value.trim().toLowerCase();
+    const rawQuery = document.getElementById("searchBox").value.trim();
+    const q = rawQuery.toLowerCase();
 
     let filtered = sites.filter(s=>{
       if(currentFilter !== "all" && s.type !== currentFilter) return false;
@@ -1479,8 +1480,9 @@
       list.innerHTML = `<div class="empty-state">
         <div class="emoji">📭</div>
         <div>目前沒有符合的站點</div>
-        <button onclick="document.getElementById('addBtn').click()">新增站點</button>
+        <button id="emptyStateAddBtn">新增站點</button>
       </div>`;
+      document.getElementById("emptyStateAddBtn").addEventListener("click", ()=>openAddSheet(rawQuery));
       updateSummary(readings);
       return;
     }
@@ -2061,7 +2063,15 @@
       return hay.includes(q);
     }) : sites;
     if(filtered.length === 0){
-      listEl.innerHTML = `<div class="daily-nav-empty">沒有符合的站點</div>`;
+      listEl.innerHTML = `
+        <div class="daily-nav-empty">
+          沒有符合的站點
+          <button id="dailyNavEmptyAddBtn" class="btn-confirm" style="display:block; margin:14px auto 0; padding:10px 22px;">新增站點</button>
+        </div>`;
+      document.getElementById("dailyNavEmptyAddBtn").addEventListener("click", ()=>{
+        document.getElementById("dailyNavOverlay").classList.remove("open");
+        openAddSheet(document.getElementById("dailyNavSearchBox").value.trim());
+      });
       return;
     }
     const logs = getDailyLogs();
@@ -2128,14 +2138,17 @@
 
   // ---- Modal ----
   const overlay = document.getElementById("overlay");
-  function openAddSheet(){
+  function openAddSheet(prefillMeterNo){
     editingSiteId = null;
     chosenType = "water";
     document.getElementById("sheetTitle").textContent = "新增站點";
     document.getElementById("f_group").value = "";
     document.getElementById("f_site").value = "";
     document.getElementById("f_location").value = "";
-    document.getElementById("f_meterno").value = "";
+    // 從搜尋結果「找不到」的空狀態點進來時，把剛搜尋的字直接帶進錶號欄位，
+    // 不用再打一次；跟輸入框本身的規則一樣只留英數字。
+    document.getElementById("f_meterno").value =
+      (typeof prefillMeterNo === "string" ? prefillMeterNo : "").replace(/[^A-Za-z0-9]/g, "");
     document.getElementById("f_prev").value = "";
     setTypeChoice("water");
     overlay.classList.add("open");
