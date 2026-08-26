@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.4">
+<meta name="desktop-app-version" content="1.27.5">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -2762,7 +2762,7 @@
     const types = chartActiveType === "all" ? ["water","elec","gas"] : [chartActiveType];
     const maxVal = Math.max(1, ...monthTotals.map(mt=>Math.max(...types.map(t=>mt[t]))));
 
-    const padL = 8, padR = 8, padT = 10, padB = 24;
+    const padL = 8, padR = 8, padT = 18, padB = 24;
     const chartW = cssW - padL - padR;
     const chartH = cssH - padT - padB;
     const groupCount = monthKeys.length;
@@ -2792,6 +2792,7 @@
       const totalBarsW = barW*types.length + barGap*(types.length-1);
       let startX = groupX + (groupW - totalBarsW)/2;
 
+      const isLastGroup = i===groupCount-1;
       types.forEach(t=>{
         const val = Math.max(0, monthTotals[i][t]);
         const h = maxVal > 0 ? (val/maxVal) * (chartH-6) : 0;
@@ -2801,6 +2802,14 @@
         const r = 3;
         roundRectPath(ctx, barX, barY, barW, Math.max(h,2), r);
         ctx.fill();
+
+        // 每一根長條都標出當月用量數字，不是只有最新那期才有（0 不標，避免擠成一團）
+        if(val > 0){
+          ctx.fillStyle = isLastGroup ? (isDark?"#fff":"#131a2b") : labelColor;
+          ctx.font = (isLastGroup?"800 ":"700 ") + (types.length>1?"8px":(groupCount>8?"9px":"11px")) + " -apple-system, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(formatNum(val), barX+barW/2, barY-4);
+        }
         startX += barW + barGap;
       });
 
