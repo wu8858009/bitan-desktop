@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.11">
+<meta name="desktop-app-version" content="1.27.12">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -1127,6 +1127,29 @@
     }
     if(target) target.scrollTop += e.deltaY;
   }, {passive:false});
+
+  // 同一個關閉 GPU 合成渲染造成的 hit-test 失準問題，滾輪會發生、點擊理論上
+  // 也可能發生：彈出視窗開著、視覺上蓋住整個畫面時，點擊事件的 e.target
+  // 卻判斷落在視窗外面（被蓋住的背景元素），導致視窗裡的按鈕（例如「關閉」）
+  // 點了完全沒反應。這裡加一層防護：只要點擊當下 e.target 沒有落在目前
+  // 最上層的彈出視窗裡，就改用滑鼠座標去比對視窗裡實際的可互動元素，
+  // 找到的話直接手動觸發它的 click，避免點擊被誤判成點到背景而完全無效。
+  document.addEventListener("click", e=>{
+    const overlays = document.querySelectorAll(".overlay.open");
+    if(overlays.length === 0) return;
+    const topOverlay = overlays[overlays.length - 1];
+    if(topOverlay.contains(e.target)) return; // hit-test 正常，不用介入
+    const clickable = topOverlay.querySelectorAll("button, a, select, input, label");
+    for(const el of clickable){
+      const r = el.getBoundingClientRect();
+      if(e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom){
+        e.preventDefault();
+        e.stopPropagation();
+        el.click();
+        return;
+      }
+    }
+  }, true);
 
   const TYPE_META = {
     water:{label:"水", icon:"💧", cls:"type-water", unit:"度"},
