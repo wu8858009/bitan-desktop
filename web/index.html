@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.7">
+<meta name="desktop-app-version" content="1.27.8">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -1437,6 +1437,10 @@
       }
       return true;
     });
+    // 主頁站點清單依店號（群組欄位）排序，數字部分用自然排序（B9 排在 B10 前面）
+    filtered = filtered.slice().sort((a,b)=>
+      (a.group||"").localeCompare(b.group||"", "zh-Hant", {numeric:true})
+    );
 
     list.innerHTML = "";
 
