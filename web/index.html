@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.26.7">
+<meta name="desktop-app-version" content="1.26.8">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -1076,6 +1076,25 @@
 <script>
 (function(){
   "use strict";
+  // 電腦版為了修正部分電腦顯示裁切的問題，關閉了 WebView2 的 GPU 合成渲染
+  // （main.py 的 WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS），副作用是彈出視窗
+  // （.sheet 等 overflow-y:auto 的容器）裡滑鼠滾輪偶爾完全沒反應，原生的
+  // 捲動事件沒有正確觸發。這裡改成手動接管滾輪事件：找到滑鼠所在位置最近
+  // 一個「真的可以捲動」的容器，直接設定 scrollTop，確保彈出視窗一定能用
+  // 滑鼠滾輪捲動；找不到就放行讓瀏覽器走原生行為（例如捲動主畫面時不受影響）。
+  document.addEventListener("wheel", e=>{
+    let el = e.target;
+    while(el && el !== document.body && el !== document.documentElement){
+      const style = getComputedStyle(el);
+      if((style.overflowY === "auto" || style.overflowY === "scroll") && el.scrollHeight > el.clientHeight){
+        el.scrollTop += e.deltaY;
+        e.preventDefault();
+        return;
+      }
+      el = el.parentElement;
+    }
+  }, {passive:false});
+
   const TYPE_META = {
     water:{label:"水", icon:"💧", cls:"type-water", unit:"度"},
     elec:{label:"電", icon:"⚡", cls:"type-elec", unit:"度"},
