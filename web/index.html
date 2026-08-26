@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.26.6">
+<meta name="desktop-app-version" content="1.26.7">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -1911,16 +1911,37 @@
   document.getElementById("dailyLogValueInput").addEventListener("keydown", e=>{
     if(e.key === "Enter") submitDailyLogEntry();
   });
+  function closeDailyLogSheetGuarded(afterClose){
+    // 附加照片時，若這筆日期還沒按「新增」送出，照片只是暫存在記憶體，
+    // 直接關閉視窗會讓照片憑空消失（底層 blob 變成沒人參照的孤兒資料）。
+    // 這裡在真正關閉前先確認，避免使用者以為照片已經存好了。
+    if(dailyLogStagedPhotos.length > 0){
+      showConfirm(
+        "您剛附加的照片還沒有跟讀數一起送出，直接離開會遺失這張照片。要現在送出這筆記錄嗎？",
+        ()=>{
+          submitDailyLogEntry();
+          if(dailyLogStagedPhotos.length === 0) afterClose();
+        },
+        {title:"照片尚未儲存", okLabel:"送出並儲存"}
+      );
+      return;
+    }
+    afterClose();
+  }
   document.getElementById("dailyLogBackBtn").addEventListener("click", ()=>{
-    document.getElementById("dailyLogOverlay").classList.remove("open");
-    renderDailyNavList();
-    document.getElementById("dailyNavOverlay").classList.add("open");
+    closeDailyLogSheetGuarded(()=>{
+      document.getElementById("dailyLogOverlay").classList.remove("open");
+      renderDailyNavList();
+      document.getElementById("dailyNavOverlay").classList.add("open");
+    });
   });
   document.getElementById("dailyLogCloseBtn").addEventListener("click", ()=>{
-    document.getElementById("dailyLogOverlay").classList.remove("open");
+    closeDailyLogSheetGuarded(()=>{
+      document.getElementById("dailyLogOverlay").classList.remove("open");
+    });
   });
   document.getElementById("dailyLogOverlay").addEventListener("click", e=>{
-    if(e.target.id === "dailyLogOverlay") e.currentTarget.classList.remove("open");
+    if(e.target.id === "dailyLogOverlay") closeDailyLogSheetGuarded(()=>e.currentTarget.classList.remove("open"));
   });
 
   // ---- 每日記錄導覽：底部導覽列入口，先選站點清單再進入該站點的每日記錄 ----
