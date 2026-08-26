@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.26.9">
+<meta name="desktop-app-version" content="1.27.0">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -706,6 +706,25 @@
     background:rgba(0,0,0,.12); border:none; color:#3a2900; width:24px; height:24px;
     border-radius:50%; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer;
   }
+
+  /* ===== 匯出報表列印區（列印/匯出 PDF 用）=====
+     電腦版透過 window.open() 開新視窗印報表在 pywebview 裡不可靠（WebView2
+     預設沒有處理 window.open，內容常常印不出來或直接失敗），改成把報表內容
+     暫時塞進這個隱藏區塊，直接對「目前這個視窗」呼叫 window.print()，並用
+     @media print 只顯示這個區塊、隱藏其他所有畫面內容。 */
+  #printReportArea{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #printReportArea, #printReportArea *{visibility:visible;}
+    #printReportArea{display:block !important; position:absolute; left:0; top:0; width:100%; padding:24px; color:#131a2b;}
+    #printReportArea h1{font-size:20px; margin-bottom:2px;}
+    #printReportArea h2{font-size:15px; margin:26px 0 10px;}
+    #printReportArea .sub{color:#6b7280; font-size:13px; margin-bottom:6px;}
+    #printReportArea table{width:100%; border-collapse:collapse; font-size:13px; margin-bottom:8px;}
+    #printReportArea th, #printReportArea td{border:1px solid #d8dce4; padding:7px 10px; text-align:left;}
+    #printReportArea th{background:#0d2140; color:#fff; font-weight:700; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+    #printReportArea tr:nth-child(even){background:#f6f7fa; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  }
 </style>
 </head>
 <body>
@@ -1050,6 +1069,7 @@
 
 <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
 <div class="toast" id="toast"></div>
+<div id="printReportArea"></div>
 
 <!-- 照片放大檢視 -->
 <div class="overlay" id="photoViewerOverlay" style="z-index:250; align-items:center;">
@@ -1254,6 +1274,23 @@
     if(!cb || !cb.onReplace) return;
     cb.onReplace();
   });
+
+  // ---- 報表列印／匯出 PDF：直接對目前這個視窗列印，而不是開新視窗
+  // （pywebview 桌面版沒有處理 window.open 的新視窗請求，開新視窗印報表
+  // 不可靠）。列印對話框裡選「Microsoft Print to PDF」就能存成 PDF 檔。
+  function printReportHtml(title, bodyHtml){
+    const area = document.getElementById("printReportArea");
+    const prevTitle = document.title;
+    area.innerHTML = bodyHtml;
+    document.title = title;
+    const cleanup = ()=>{
+      document.title = prevTitle;
+      area.innerHTML = "";
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    window.print();
+  }
 
   // ---- 自訂確認彈窗（取代原生 confirm，避免在受限預覽環境被封鎖） ----
   let pendingConfirmCallback = null;
@@ -2191,29 +2228,13 @@
         <td style="text-align:right;font-weight:700">${usage}</td>
       </tr>`;
     });
-    const printWin = window.open("", "_blank");
-    printWin.document.write(`<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8">
-      <title>碧潭能源管理系統 - ${currentMonthKey} 抄錄報表</title>
-      <style>
-        body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif; padding:32px; color:#131a2b;}
-        h1{font-size:20px; margin-bottom:2px;}
-        .sub{color:#6b7280; font-size:13px; margin-bottom:20px;}
-        table{width:100%; border-collapse:collapse; font-size:13px;}
-        th,td{border:1px solid #d8dce4; padding:8px 10px; text-align:left;}
-        th{background:#0d2140; color:#fff; font-weight:700;}
-        tr:nth-child(even){background:#f6f7fa;}
-        @media print{ body{padding:12px;} }
-      </style></head><body>
+    printReportHtml(`碧潭能源管理系統 - ${currentMonthKey} 抄錄報表`, `
       <h1>碧潭能源管理系統 － ${currentMonthKey} 抄錄總表</h1>
       <div class="sub">抄錄日：${dateStr} ｜ 匯出時間：${new Date().toLocaleString("zh-TW")}</div>
       <table>
         <thead><tr><th>群組</th><th>站點</th><th>位置</th><th>錶號</th><th>類型</th><th>上期</th><th>本期</th><th>用量</th></tr></thead>
         <tbody>${tableRows}</tbody>
-      </table>
-      </body></html>`);
-    printWin.document.close();
-    printWin.focus();
-    setTimeout(()=>printWin.print(), 300);
+      </table>`);
   });
 
   // ---- 匯出完整備份 JSON（站點與各月讀數；照片只存在這台裝置，不含在備份內）----
@@ -2977,20 +2998,7 @@
     const groupLabel = chartGroupFilter==="all" ? "全部群組" : chartGroupFilter;
     const typeLabel = chartActiveType==="all" ? "水/電/瓦斯" : TYPE_META[chartActiveType].label;
 
-    const printWin = window.open("", "_blank");
-    printWin.document.write(`<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8">
-      <title>碧潭能源管理系統 - 用量趨勢分析報告</title>
-      <style>
-        body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif; padding:32px; color:#131a2b;}
-        h1{font-size:20px; margin-bottom:2px;}
-        h2{font-size:15px; margin:26px 0 10px;}
-        .sub{color:#6b7280; font-size:13px; margin-bottom:6px;}
-        table{width:100%; border-collapse:collapse; font-size:13px; margin-bottom:8px;}
-        th,td{border:1px solid #d8dce4; padding:7px 10px; text-align:left;}
-        th{background:#0d2140; color:#fff; font-weight:700;}
-        tr:nth-child(even){background:#f6f7fa;}
-        @media print{ body{padding:12px;} }
-      </style></head><body>
+    printReportHtml("碧潭能源管理系統 - 用量趨勢分析報告", `
       <h1>碧潭能源管理系統 － 用量趨勢分析報告</h1>
       <div class="sub">篩選群組：${escapeHtml(groupLabel)} ｜ 類型：${typeLabel} ｜ 期間：近${chartPeriodMonths}期（至 ${currentMonthKey}）</div>
       <div class="sub">匯出時間：${new Date().toLocaleString("zh-TW")}</div>
@@ -2999,11 +3007,7 @@
       <table><thead><tr><th>月份</th><th>總用量（度）</th></tr></thead><tbody>${trendRows}</tbody></table>
 
       <h2>本期用量排行（依用量高至低）</h2>
-      <table><thead><tr><th>#</th><th>群組</th><th>站點</th><th>類型</th><th>用量（度）</th></tr></thead><tbody>${rankHtml || '<tr><td colspan="5" style="text-align:center;color:#9aa3b2">本期尚無已抄錄資料</td></tr>'}</tbody></table>
-      </body></html>`);
-    printWin.document.close();
-    printWin.focus();
-    setTimeout(()=>printWin.print(), 300);
+      <table><thead><tr><th>#</th><th>群組</th><th>站點</th><th>類型</th><th>用量（度）</th></tr></thead><tbody>${rankHtml || '<tr><td colspan="5" style="text-align:center;color:#9aa3b2">本期尚無已抄錄資料</td></tr>'}</tbody></table>`);
   });
   // ==================== 圖表分析結束 ====================
 
