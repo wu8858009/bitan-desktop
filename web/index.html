@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.0">
+<meta name="desktop-app-version" content="1.27.1">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -2974,6 +2974,27 @@
 
   // ---- 匯出圖表分析報告（列印 / PDF）----
   document.getElementById("chartExportBtn").addEventListener("click", ()=>{
+    if(chartActiveType === "daily"){
+      // 「每日」分頁跟月度趨勢是完全不同的資料（單一站點的每日讀數），
+      // 之前沒有另外處理，共用月度報表邏輯裡的 TYPE_META[chartActiveType]
+      // 會因為 chartActiveType 是 "daily"（不是水/電/瓦斯）而直接噴錯，
+      // 整個匯出動作在「每日」分頁點下去完全沒反應。改成另外產生每日報表。
+      const site = sites.find(s=>s.id===chartDailySiteId);
+      if(!site){ showToast("請先選擇站點"); return; }
+      const meta = TYPE_META[site.type];
+      const logs = getDailyLogs();
+      const entries = (logs[site.id] || []).slice().sort((a,b)=>a.date.localeCompare(b.date));
+      const rows = entries.map((e,i)=>{
+        const prevVal = i>0 ? parseFloat(entries[i-1].value) : null;
+        const usage = prevVal===null ? "--" : formatNum(parseFloat(e.value)-prevVal);
+        return `<tr><td>${e.date}</td><td style="text-align:right">${formatNum(parseFloat(e.value))}</td><td style="text-align:right">${usage}</td></tr>`;
+      }).join("");
+      printReportHtml(`碧潭能源管理系統 - ${site.site} 每日用量報告`, `
+        <h1>碧潭能源管理系統 － ${meta.icon} ${escapeHtml(site.site)} 每日用量報告</h1>
+        <div class="sub">錶號：${escapeHtml(site.meterNo||"--")} ｜ 匯出時間：${new Date().toLocaleString("zh-TW")}</div>
+        <table><thead><tr><th>日期</th><th>讀數</th><th>用量</th></tr></thead><tbody>${rows || '<tr><td colspan="3" style="text-align:center;color:#9aa3b2">尚無每日記錄</td></tr>'}</tbody></table>`);
+      return;
+    }
     const monthKeys = getLastNMonthKeys(currentMonthKey, chartPeriodMonths);
     const monthTotals = monthKeys.map(k=>computeMonthTotals(k));
     const types = chartActiveType === "all" ? ["water","elec","gas"] : [chartActiveType];
