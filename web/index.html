@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.3">
+<meta name="desktop-app-version" content="1.27.4">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -2704,12 +2704,11 @@
       roundRectPath(ctx, barX, barY, barW, Math.max(h,2), 4);
       ctx.fill();
 
-      if(isLast){
-        ctx.fillStyle = isDark ? "#fff" : "#131a2b";
-        ctx.font = "800 12px -apple-system, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(formatNum(e.usage), groupX+groupW/2, barY-8);
-      }
+      // 每一根長條都在上方標出當天用量數字，不是只有最新那天才有
+      ctx.fillStyle = isLast ? (isDark ? "#fff" : "#131a2b") : labelColor;
+      ctx.font = (isLast ? "800 " : "700 ") + (groupCount>10?"9px":"11px") + " -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(formatNum(e.usage), groupX+groupW/2, barY-6);
 
       // X 軸日期標籤（資料多時每隔幾個才標示，避免擠成一團）
       const skip = groupCount>10 ? Math.ceil(groupCount/6) : 1;
