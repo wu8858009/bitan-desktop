@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.26.5">
+<meta name="desktop-app-version" content="1.26.6">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -952,7 +952,7 @@
     <div class="sheet-actions">
       <button class="btn-cancel" id="menuCloseBtn">關閉</button>
     </div>
-    <div class="menu-version">碧潭能源管理系統 PRO v3.5 ・ 資料儲存於本機瀏覽器</div>
+    <div class="menu-version" id="menuVersionLine">碧潭能源管理系統 PRO v3.5 ・ 資料儲存於本機瀏覽器</div>
   </div>
 </div>
 
@@ -3195,6 +3195,13 @@
   function hasAutoUpdateBridge(){
     return !!(window.pywebview && window.pywebview.api && window.pywebview.api.download_and_apply_update);
   }
+  function updateMenuVersionLine(){
+    // 只有電腦版才顯示目前安裝的版本號（方便回報問題時對版本），線上版沒有這個 bridge 就不顯示
+    if(!hasAutoUpdateBridge()) return;
+    const version = document.querySelector('meta[name="desktop-app-version"]').content;
+    document.getElementById("menuVersionLine").textContent =
+      `碧潭能源管理系統 PRO v3.5 ・ 電腦版 v${version} ・ 資料儲存於本機瀏覽器`;
+  }
   function setBannerMsg(text){
     document.getElementById("updateBannerMsg").textContent = text;
   }
@@ -3287,6 +3294,7 @@
       setTimeout(hideSplash, Math.max(0, minShow - (Date.now() - splashStart)));
       checkPendingUpdateResult();
       checkDesktopUpdate();
+      updateMenuVersionLine();
     }
   }
   bootApp();
