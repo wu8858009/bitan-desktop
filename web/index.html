@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.8">
+<meta name="desktop-app-version" content="1.27.9">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -2140,6 +2140,14 @@
     if(!site){
       showToast("請輸入站點名稱");
       return;
+    }
+
+    if(meterNo){
+      const dup = sites.find(s=>s.meterNo===meterNo && s.id!==editingSiteId);
+      if(dup){
+        showToast(`錶號 ${meterNo} 已經被「${dup.site}」使用，請確認`);
+        return;
+      }
     }
 
     const payload = {group, site, location, meterNo, type:chosenType, basePrev:prev};
