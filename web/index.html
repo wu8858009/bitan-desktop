@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.10">
+<meta name="desktop-app-version" content="1.27.11">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -1024,6 +1024,10 @@
   <div class="sheet daily-nav-sheet">
     <h2>📅 每日記錄</h2>
     <div class="daily-nav-hint">選擇要查看／登錄每日記錄的站點</div>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="dailyNavSearchBox" placeholder="搜尋店名、編號 or 位置...">
+    </div>
     <div class="daily-nav-list" id="dailyNavList"></div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="dailyNavCloseBtn">關閉</button>
@@ -2028,8 +2032,17 @@
       listEl.innerHTML = `<div class="daily-nav-empty">尚無站點，請先新增站點</div>`;
       return;
     }
+    const q = document.getElementById("dailyNavSearchBox").value.trim().toLowerCase();
+    const filtered = q ? sites.filter(s=>{
+      const hay = (s.group+" "+s.site+" "+s.location+" "+s.meterNo).toLowerCase();
+      return hay.includes(q);
+    }) : sites;
+    if(filtered.length === 0){
+      listEl.innerHTML = `<div class="daily-nav-empty">沒有符合的站點</div>`;
+      return;
+    }
     const logs = getDailyLogs();
-    listEl.innerHTML = sites.map(site=>{
+    listEl.innerHTML = filtered.map(site=>{
       const meta = TYPE_META[site.type];
       const count = (logs[site.id]||[]).length;
       return `
@@ -2053,6 +2066,7 @@
     renderDailyNavList();
     document.getElementById("dailyNavOverlay").classList.add("open");
   });
+  document.getElementById("dailyNavSearchBox").addEventListener("input", renderDailyNavList);
   document.getElementById("dailyNavCloseBtn").addEventListener("click", ()=>{
     document.getElementById("dailyNavOverlay").classList.remove("open");
   });
