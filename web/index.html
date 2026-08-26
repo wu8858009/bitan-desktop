@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.2">
+<meta name="desktop-app-version" content="1.27.3">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -1275,30 +1275,22 @@
     cb.onReplace();
   });
 
-  // ---- 報表匯出 PDF ----
-  // 電腦版：直接呼叫 Python 那邊用 WebView2 內建的 PrintToPdfAsync 存檔，
-  // 不透過列印對話框——不會有瀏覽器自動加的網址/日期/頁碼頁首頁尾，也不用
-  // 使用者每次手動關閉那個選項。線上版（沒有這個 bridge）則退回瀏覽器內建
-  // 列印（window.open 開新視窗在 pywebview 桌面版不可靠，改對目前視窗列印）。
-  function printReportHtml(title, bodyHtml, suggestedFileName){
+  // ---- 報表列印／匯出 PDF：直接對目前這個視窗列印，而不是開新視窗
+  // （pywebview 桌面版沒有處理 window.open 的新視窗請求，開新視窗印報表
+  // 不可靠）。列印對話框裡選「Microsoft Print to PDF」就能存成 PDF 檔。
+  //
+  // 曾經試過改用 Python 端直接呼叫 WebView2 的 CoreWebView2.PrintToPdfAsync
+  // 跳過列印對話框（這樣就不會印出瀏覽器自動加的頁首/頁尾），但那個做法
+  // 會讓整個軟體當掉（很可能是背景執行緒呼叫 core.Environment /
+  // PrintToPdfAsync 時跟 WinForms UI 執行緒之間的同步出了問題，這類底層
+  // COM／WebView2 執行緒問題很難在沒有真實互動環境下排除），所以還原回
+  // window.print() 這個確定能動的做法。頁首/頁尾網址日期頁碼的問題，
+  // 留給使用者在列印對話框裡手動關閉「頁首及頁尾」選項。
+  function printReportHtml(title, bodyHtml){
     const area = document.getElementById("printReportArea");
     const prevTitle = document.title;
     area.innerHTML = bodyHtml;
     document.title = title;
-    if(window.pywebview && window.pywebview.api && window.pywebview.api.export_report_pdf){
-      showToast("正在產生 PDF…");
-      const fileName = suggestedFileName || (title.replace(/[\\/:*?"<>|]/g,"") + ".pdf");
-      window.pywebview.api.export_report_pdf(fileName)
-        .then(res=>{
-          showToast((res && res.ok) ? "PDF 已儲存並開啟" : ((res && res.error) || "PDF 匯出失敗"));
-        })
-        .catch(()=>{ showToast("PDF 匯出失敗"); })
-        .finally(()=>{
-          document.title = prevTitle;
-          area.innerHTML = "";
-        });
-      return;
-    }
     const cleanup = ()=>{
       document.title = prevTitle;
       area.innerHTML = "";

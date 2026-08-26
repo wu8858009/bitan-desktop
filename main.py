@@ -130,59 +130,6 @@ class Api:
         time.sleep(0.6)
         os._exit(0)
 
-    def export_report_pdf(self, suggested_name):
-        """把目前畫面直接存成 PDF（呼叫前 JS 已經把要匯出的報表內容準備好顯示在
-        #printReportArea，並靠 @media print CSS 只讓那個區塊在「列印檢視」下
-        可見）。改用 WebView2 內建的 PrintToPdfAsync，不透過瀏覽器列印對話框：
-        使用者不用每次手動關閉「頁首及頁尾」，也不會印出網址、日期、頁碼這些
-        瀏覽器自動加的東西。存檔位置固定在 exe 同層的「報表匯出」資料夾，存完
-        直接用系統預設的 PDF 開啟程式打開，方便馬上看到結果。"""
-        try:
-            import clr
-
-            clr.AddReference("System.Windows.Forms")
-            from System import Func, Type
-
-            from webview.platforms import winforms as _wf
-
-            win = webview.windows[0]
-            browser_view = _wf.BrowserView.instances[win.uid]
-            webview_ctrl = browser_view.browser.webview
-            core = webview_ctrl.CoreWebView2
-
-            save_dir = os.path.join(base_path(), "報表匯出")
-            os.makedirs(save_dir, exist_ok=True)
-            safe_name = "".join(c for c in suggested_name if c not in '\\/:*?"<>|').strip() or "報表"
-            if not safe_name.lower().endswith(".pdf"):
-                safe_name += ".pdf"
-            path = os.path.join(save_dir, safe_name)
-            base_p, ext = os.path.splitext(path)
-            n = 1
-            while os.path.exists(path):
-                path = f"{base_p}({n}){ext}"
-                n += 1
-
-            holder = {}
-
-            def _start():
-                settings = core.Environment.CreatePrintSettings()
-                settings.ShouldPrintHeaderAndFooter = False
-                settings.ShouldPrintBackgrounds = True
-                holder["task"] = core.PrintToPdfAsync(path, settings)
-                return True
-
-            webview_ctrl.Invoke(Func[Type](_start))
-            ok = holder["task"].Result
-            if not ok:
-                return {"ok": False, "error": "WebView2 回報存檔失敗"}
-            try:
-                os.startfile(path)
-            except Exception:
-                pass
-            return {"ok": True, "path": path}
-        except Exception as e:
-            return {"ok": False, "error": str(e)}
-
 
 def base_path():
     """使用者資料要放的位置：exe 同層目錄（打包後）或本檔案所在目錄（開發時）。"""
