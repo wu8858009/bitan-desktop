@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.5">
+<meta name="desktop-app-version" content="1.27.6">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -2413,7 +2413,8 @@
   const CHART_COLORS = {
     water: "#2f7bf6",
     elec: "#f5b400",
-    gas: "#ff6a3d"
+    gas: "#ff6a3d",
+    all: "#8b5cf6"
   };
   const CHART_LABELS = {water:"水", elec:"電", gas:"瓦斯"};
 
@@ -2487,11 +2488,11 @@
       chartDailySiteId = null;
       return;
     }
-    sel.innerHTML = sites.map(s=>{
+    sel.innerHTML = `<option value="__all__">📊 全部站點（加總）</option>` + sites.map(s=>{
       const meta = TYPE_META[s.type];
       return `<option value="${s.id}">${meta.icon} ${escapeHtml(s.site)}</option>`;
     }).join("");
-    if(!chartDailySiteId || !sites.find(s=>s.id===chartDailySiteId)){
+    if(!chartDailySiteId || (chartDailySiteId !== "__all__" && !sites.find(s=>s.id===chartDailySiteId))){
       chartDailySiteId = sites[0].id;
     }
     sel.value = chartDailySiteId;
@@ -2587,11 +2588,55 @@
     renderTopUsageList();
   }
 
+  // 加總目前群組篩選內「所有站點」的每日用量：同一天的用量直接加起來
+  // （各站點各自用相鄰兩筆讀數的差計算，日期沒有交集的站點就各自貢獻自己有的那幾天）
+  function computeAllSitesDailyUsage(){
+    const logs = getDailyLogs();
+    const dateMap = {};
+    filteredSites().forEach(site=>{
+      const entries = (logs[site.id] || []).slice().sort((a,b)=>a.date.localeCompare(b.date));
+      for(let i=1;i<entries.length;i++){
+        const usage = parseFloat(entries[i].value) - parseFloat(entries[i-1].value);
+        if(isNaN(usage)) continue;
+        const d = entries[i].date;
+        dateMap[d] = (dateMap[d]||0) + usage;
+      }
+    });
+    return Object.keys(dateMap).sort().map(d=>({date:d, usage:dateMap[d]}));
+  }
+
   // ---- 每日趨勢：把每日記錄的資料畫成專業的平滑折線圖 ----
   function renderDailyChartPanel(){
-    const site = sites.find(s=>s.id===chartDailySiteId);
     const legend = document.getElementById("chartLegend");
     const statsRow = document.getElementById("chartStatsRow");
+    if(chartDailySiteId === "__all__"){
+      // 全部站點加總：跟單一站點不同，一根長條可能對應好幾個站點的資料，
+      // 沒辦法點長條跳去修改單一筆記錄，所以 lastDailyUsageEntries 留空
+      // （點長條的 click handler 靠這個判斷要不要處理）。
+      const usageEntries = computeAllSitesDailyUsage();
+      drawDailyUsageChart(usageEntries, "all");
+      lastDailyUsageEntries = null;
+      document.getElementById("usageChartCanvas").style.cursor = "default";
+      const groupLabel = chartGroupFilter==="all" ? "全部站點" : chartGroupFilter;
+      legend.innerHTML = `<span><span class="legend-dot" style="background:${CHART_COLORS.all}"></span>📊 ${escapeHtml(groupLabel)}．每日總用量（加總所有站點）</span>`;
+      if(usageEntries.length === 0){
+        statsRow.innerHTML = `
+          <div class="chart-stat-card"><div class="n">0</div><div class="l">記錄天數</div></div>
+          <div class="chart-stat-card"><div class="n">--</div><div class="l">最新用量</div></div>
+          <div class="chart-stat-card"><div class="n">--</div><div class="l">平均每日用量</div></div>
+        `;
+        return;
+      }
+      const avg = usageEntries.reduce((s,e)=>s+e.usage,0) / usageEntries.length;
+      const latest = usageEntries[usageEntries.length-1];
+      statsRow.innerHTML = `
+        <div class="chart-stat-card"><div class="n">${usageEntries.length}</div><div class="l">記錄天數</div></div>
+        <div class="chart-stat-card"><div class="n">${formatNum(latest.usage)}</div><div class="l">最新用量（${latest.date.slice(5)}）</div></div>
+        <div class="chart-stat-card"><div class="n">${formatNum(avg)}</div><div class="l">平均每日用量</div></div>
+      `;
+      return;
+    }
+    const site = sites.find(s=>s.id===chartDailySiteId);
     if(!site){
       drawDailyUsageChart(null);
       lastDailyUsageEntries = null;
@@ -2995,6 +3040,18 @@
       // 之前沒有另外處理，共用月度報表邏輯裡的 TYPE_META[chartActiveType]
       // 會因為 chartActiveType 是 "daily"（不是水/電/瓦斯）而直接噴錯，
       // 整個匯出動作在「每日」分頁點下去完全沒反應。改成另外產生每日報表。
+      if(chartDailySiteId === "__all__"){
+        const usageEntries = computeAllSitesDailyUsage();
+        const groupLabel = chartGroupFilter==="all" ? "全部站點" : chartGroupFilter;
+        const rows = usageEntries.map(e=>
+          `<tr><td>${e.date}</td><td style="text-align:right">${formatNum(e.usage)}</td></tr>`
+        ).join("");
+        printReportHtml(`碧潭能源管理系統 - ${groupLabel} 每日總用量報告`, `
+          <h1>碧潭能源管理系統 － ${escapeHtml(groupLabel)} 每日總用量報告</h1>
+          <div class="sub">加總所有站點每日用量 ｜ 匯出時間：${new Date().toLocaleString("zh-TW")}</div>
+          <table><thead><tr><th>日期</th><th>總用量</th></tr></thead><tbody>${rows || '<tr><td colspan="2" style="text-align:center;color:#9aa3b2">尚無每日記錄</td></tr>'}</tbody></table>`, `${groupLabel}_每日總用量報告.pdf`);
+        return;
+      }
       const site = sites.find(s=>s.id===chartDailySiteId);
       if(!site){ showToast("請先選擇站點"); return; }
       const meta = TYPE_META[site.type];
