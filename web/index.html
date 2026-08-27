@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.22">
+<meta name="desktop-app-version" content="1.27.23">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -2665,7 +2665,10 @@
 
   function populateChartGroupFilter(){
     const sel = document.getElementById("chartGroupFilter");
-    const groups = [...new Set(sites.map(s=>s.group||"未分類"))];
+    // 跟主頁站點清單一樣依店號（群組欄位）自然排序，數字部分排序才會正確
+    // （B9 排在 B10 前面）。
+    const groups = [...new Set(sites.map(s=>s.group||"未分類"))]
+      .sort((a,b)=>a.localeCompare(b, "zh-Hant", {numeric:true}));
     sel.innerHTML = `<option value="all">全部群組</option>` +
       groups.map(g=>`<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join("");
     sel.value = "all";
@@ -2682,12 +2685,16 @@
       chartDailySiteId = null;
       return;
     }
-    sel.innerHTML = sites.map(s=>{
+    // 跟主頁站點清單一樣依店號（群組欄位）自然排序
+    const sortedSites = sites.slice().sort((a,b)=>
+      (a.group||"").localeCompare(b.group||"", "zh-Hant", {numeric:true})
+    );
+    sel.innerHTML = sortedSites.map(s=>{
       const meta = TYPE_META[s.type];
       return `<option value="${s.id}">${meta.icon} ${escapeHtml(s.site)}</option>`;
     }).join("");
     if(!chartDailySiteId || !sites.find(s=>s.id===chartDailySiteId)){
-      chartDailySiteId = sites[0].id;
+      chartDailySiteId = sortedSites[0].id;
     }
     sel.value = chartDailySiteId;
   }
