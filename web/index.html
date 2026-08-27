@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.15">
+<meta name="desktop-app-version" content="1.27.16">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -102,8 +102,11 @@
   .search-input{
     width:100%; background:#fff; border:none; border-radius:14px;
     padding:15px 16px 15px 46px; font-size:16px; color:var(--ink);
+    transition:box-shadow .12s ease, background-color .12s ease;
   }
   .search-input::placeholder{color:#9aa3b2;}
+  .search-input:hover{box-shadow:0 0 0 1.5px var(--gold) inset;}
+  .search-input:focus{outline:none; box-shadow:0 0 0 2px var(--gold-dark) inset;}
   .search-input.has-value{background:#fff6da; border:1.5px solid var(--gold);}
   body.dark-mode .search-input.has-value{background:#3a2f0f; border:1.5px solid var(--gold);}
   .search-icon{position:absolute; left:16px; top:50%; transform:translateY(-50%); font-size:18px; opacity:.55;}
