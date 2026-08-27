@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.17">
+<meta name="desktop-app-version" content="1.27.18">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -1158,6 +1158,19 @@
     }
   }, true);
 
+  // 搜尋欄裡面已經有字時，點一下就整段反白選取，可以直接輸入新關鍵字覆蓋掉，
+  // 不用先手動清空。用 mouseup（而不是 focus）觸發，因為 Chromium 系瀏覽器
+  // 點擊輸入框讓它取得焦點後，mouseup 預設行為會把 focus 時設好的選取範圍
+  // 收合成游標，只在 focus 裡呼叫 select() 沒有用，要在 mouseup 擋掉預設行為。
+  function enableSelectAllOnClick(el){
+    el.addEventListener("mouseup", e=>{
+      if(document.activeElement === el && el.value){
+        e.preventDefault();
+        el.select();
+      }
+    });
+  }
+
   const TYPE_META = {
     water:{label:"水", icon:"💧", cls:"type-water", unit:"度"},
     elec:{label:"電", icon:"⚡", cls:"type-elec", unit:"度"},
@@ -2111,6 +2124,7 @@
     document.getElementById("dailyNavOverlay").classList.add("open");
   });
   document.getElementById("dailyNavSearchBox").addEventListener("input", renderDailyNavList);
+  enableSelectAllOnClick(document.getElementById("dailyNavSearchBox"));
   document.getElementById("dailyNavCloseBtn").addEventListener("click", ()=>{
     document.getElementById("dailyNavOverlay").classList.remove("open");
   });
@@ -3135,6 +3149,7 @@
 
   // ---- Search ----
   document.getElementById("searchBox").addEventListener("input", render);
+  enableSelectAllOnClick(document.getElementById("searchBox"));
 
   // ---- Save all（強制送出所有還在防抖動等待中的本期讀數）----
   document.getElementById("saveAllBtn").addEventListener("click", ()=>{
