@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.20">
+<meta name="desktop-app-version" content="1.27.21">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -2472,7 +2472,7 @@
   });
   applyDarkMode(localStorage.getItem(DARK_KEY) === "1");
 
-  // ---- 新增站點必填欄位設定（每個欄位是否必填都可在系統選單自訂，站點名稱預設為必填） ----
+  // ---- 新增站點必填欄位設定（所有欄位預設都不強制必填，完全交給系統選單開關決定） ----
   const REQUIRED_FIELDS_KEY = "bitan_required_fields";
   const REQUIRED_FIELD_SWITCHES = {
     site:"reqSiteSwitch", group:"reqGroupSwitch", location:"reqLocationSwitch",
@@ -2482,7 +2482,7 @@
     site:"reqStarSite", group:"reqStarGroup", location:"reqStarLocation",
     meterNo:"reqStarMeterNo", prev:"reqStarPrev"
   };
-  const REQUIRED_FIELD_DEFAULTS = {site:true, group:false, location:false, meterNo:false, prev:false};
+  const REQUIRED_FIELD_DEFAULTS = {site:false, group:false, location:false, meterNo:false, prev:false};
   function getRequiredFields(){
     try{
       const saved = JSON.parse(localStorage.getItem(REQUIRED_FIELDS_KEY) || "{}");
