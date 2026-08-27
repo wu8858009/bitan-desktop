@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.13">
+<meta name="desktop-app-version" content="1.27.14">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -104,6 +104,8 @@
     padding:15px 16px 15px 46px; font-size:16px; color:var(--ink);
   }
   .search-input::placeholder{color:#9aa3b2;}
+  .search-input.has-value{background:#fff6da; border:1.5px solid var(--gold);}
+  body.dark-mode .search-input.has-value{background:#3a2f0f; border:1.5px solid var(--gold);}
   .search-icon{position:absolute; left:16px; top:50%; transform:translateY(-50%); font-size:18px; opacity:.55;}
 
   .summary-bar{
@@ -1458,8 +1460,10 @@
   function render(){
     const list = document.getElementById("cardList");
     const readings = loadReadings(currentMonthKey);
-    const rawQuery = document.getElementById("searchBox").value.trim();
+    const searchBoxEl = document.getElementById("searchBox");
+    const rawQuery = searchBoxEl.value.trim();
     const q = rawQuery.toLowerCase();
+    searchBoxEl.classList.toggle("has-value", !!rawQuery);
 
     let filtered = sites.filter(s=>{
       if(currentFilter !== "all" && s.type !== currentFilter) return false;
@@ -2053,11 +2057,13 @@
   // ---- 每日記錄導覽：底部導覽列入口，先選站點清單再進入該站點的每日記錄 ----
   function renderDailyNavList(){
     const listEl = document.getElementById("dailyNavList");
+    const navSearchBoxEl = document.getElementById("dailyNavSearchBox");
+    navSearchBoxEl.classList.toggle("has-value", !!navSearchBoxEl.value.trim());
     if(sites.length === 0){
       listEl.innerHTML = `<div class="daily-nav-empty">尚無站點，請先新增站點</div>`;
       return;
     }
-    const q = document.getElementById("dailyNavSearchBox").value.trim().toLowerCase();
+    const q = navSearchBoxEl.value.trim().toLowerCase();
     const filtered = q ? sites.filter(s=>{
       const hay = (s.group+" "+s.site+" "+s.location+" "+s.meterNo).toLowerCase();
       return hay.includes(q);
