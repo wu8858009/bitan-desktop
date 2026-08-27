@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.19">
+<meta name="desktop-app-version" content="1.27.20">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -817,7 +817,7 @@
       <input type="text" id="f_group" placeholder="例：吞吞吐吐">
     </div>
     <div class="form-group">
-      <label>站點名稱<span class="req-star show">*</span></label>
+      <label>站點名稱<span class="req-star" id="reqStarSite">*</span></label>
       <input type="text" id="f_site" placeholder="例：乒乒乓乓">
     </div>
     <div class="form-group">
@@ -950,6 +950,11 @@
 
     <div class="menu-section">
       <div class="menu-section-title">新增站點必填欄位</div>
+      <button type="button" class="menu-item" id="mReqSite">
+        <span class="mi-ic">🏠</span>
+        <span class="mi-label">站點名稱<span class="mi-sub">開啟後，新增站點時沒填會擋下</span></span>
+        <span class="toggle-switch" id="reqSiteSwitch"></span>
+      </button>
       <button type="button" class="menu-item" id="mReqGroup">
         <span class="mi-ic">🏷️</span>
         <span class="mi-label">群組 / 客戶名稱<span class="mi-sub">開啟後，新增站點時沒填會擋下</span></span>
@@ -2245,12 +2250,11 @@
     const rawPrev = document.getElementById("f_prev").value.trim();
     const prev = parseFloat(rawPrev) || 0;
 
-    if(!site){
+    const requiredFields = getRequiredFields();
+    if(requiredFields.site && !site){
       showToast("請輸入站點名稱");
       return;
     }
-
-    const requiredFields = getRequiredFields();
     if(requiredFields.group && !group){
       showToast("請輸入群組 / 客戶名稱");
       return;
@@ -2268,7 +2272,7 @@
       return;
     }
 
-    const dup = sites.find(s=>s.site.trim().toLowerCase()===site.toLowerCase() && s.id!==editingSiteId);
+    const dup = site ? sites.find(s=>s.site.trim().toLowerCase()===site.toLowerCase() && s.id!==editingSiteId) : null;
     if(dup){
       showToast(`站點名稱「${site}」已經重複了，請確認`);
       return;
@@ -2468,22 +2472,23 @@
   });
   applyDarkMode(localStorage.getItem(DARK_KEY) === "1");
 
-  // ---- 新增站點必填欄位設定（站點名稱本來就一定要填，這裡是其餘欄位可自訂） ----
+  // ---- 新增站點必填欄位設定（每個欄位是否必填都可在系統選單自訂，站點名稱預設為必填） ----
   const REQUIRED_FIELDS_KEY = "bitan_required_fields";
   const REQUIRED_FIELD_SWITCHES = {
-    group:"reqGroupSwitch", location:"reqLocationSwitch",
+    site:"reqSiteSwitch", group:"reqGroupSwitch", location:"reqLocationSwitch",
     meterNo:"reqMeterNoSwitch", prev:"reqPrevSwitch"
   };
   const REQUIRED_FIELD_STARS = {
-    group:"reqStarGroup", location:"reqStarLocation",
+    site:"reqStarSite", group:"reqStarGroup", location:"reqStarLocation",
     meterNo:"reqStarMeterNo", prev:"reqStarPrev"
   };
+  const REQUIRED_FIELD_DEFAULTS = {site:true, group:false, location:false, meterNo:false, prev:false};
   function getRequiredFields(){
     try{
       const saved = JSON.parse(localStorage.getItem(REQUIRED_FIELDS_KEY) || "{}");
-      return Object.assign({group:false, location:false, meterNo:false, prev:false}, saved);
+      return Object.assign({}, REQUIRED_FIELD_DEFAULTS, saved);
     }catch(e){
-      return {group:false, location:false, meterNo:false, prev:false};
+      return Object.assign({}, REQUIRED_FIELD_DEFAULTS);
     }
   }
   function setRequiredField(key, on){
@@ -2503,7 +2508,7 @@
       document.getElementById(REQUIRED_FIELD_STARS[key]).classList.toggle("show", !!fields[key]);
     });
   }
-  [["mReqGroup","group"], ["mReqLocation","location"], ["mReqMeterNo","meterNo"], ["mReqPrev","prev"]]
+  [["mReqSite","site"], ["mReqGroup","group"], ["mReqLocation","location"], ["mReqMeterNo","meterNo"], ["mReqPrev","prev"]]
     .forEach(([btnId, key])=>{
       document.getElementById(btnId).addEventListener("click", ()=>{
         const fields = getRequiredFields();
