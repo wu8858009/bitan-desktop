@@ -7,7 +7,7 @@
 <meta name="description" content="碧潭能源管理系統 PRO - 水電瓦斯抄錶與用量分析工具">
 <meta name="theme-color" content="#0d2140">
 <meta name="app-build" content="3.5">
-<meta name="desktop-app-version" content="1.27.23">
+<meta name="desktop-app-version" content="1.27.24">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
@@ -84,6 +84,10 @@
     display:flex; align-items:center; gap:8px; height:44px;
   }
   .month-select select{border:none; background:transparent; font-weight:800; font-size:16px; color:var(--ink); appearance:none; -webkit-appearance:none; max-width:110px;}
+  .month-select .month-input{border:none; background:transparent; font-weight:800; font-size:16px; color:var(--ink); width:118px; font-family:inherit; padding:0;}
+  .month-select .month-input::-webkit-calendar-picker-indicator{cursor:pointer; opacity:.6; border-radius:6px;}
+  .month-select .month-input::-webkit-calendar-picker-indicator:hover{opacity:1;}
+  body.dark-mode .month-select .month-input::-webkit-calendar-picker-indicator{filter:invert(1);}
   .divider-v{width:1px; height:26px; background:rgba(255,255,255,.18); flex:0 0 auto;}
   .date-group{
     display:flex; align-items:center; gap:8px;
@@ -101,7 +105,7 @@
   .search-wrap{position:relative; margin-bottom:12px;}
   .search-input{
     width:100%; background:#fff; border:1.5px solid transparent; border-radius:14px;
-    padding:15px 16px 15px 46px; font-size:16px; color:var(--ink); box-sizing:border-box;
+    padding:15px 46px 15px 46px; font-size:16px; color:var(--ink); box-sizing:border-box;
     transition:border-color .12s ease, background-color .12s ease;
   }
   .search-input::placeholder{color:#9aa3b2;}
@@ -112,6 +116,15 @@
   .search-input.has-value{background:#fff6da; border-color:var(--gold);}
   body.dark-mode .search-input.has-value{background:#3a2f0f; border-color:var(--gold);}
   .search-icon{position:absolute; left:16px; top:50%; transform:translateY(-50%); font-size:18px; opacity:.55;}
+  .search-scan-btn{
+    position:absolute; right:6px; top:50%; transform:translateY(-50%);
+    width:34px; height:34px; border-radius:9px; border:none; background:transparent;
+    color:var(--ink-soft); font-size:17px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .search-scan-btn:hover{background:#f1f3f7;}
+  .search-scan-btn.busy{opacity:.45; pointer-events:none;}
+  body.dark-mode .search-scan-btn:hover{background:#1a2337;}
 
   .summary-bar{
     background:var(--navy-950);
@@ -214,7 +227,7 @@
     display:flex; align-items:center; justify-content:center; gap:6px;
   }
   .photo-preview{margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;}
-  .photo-preview img{width:56px; height:56px; object-fit:cover; border-radius:7px; border:1px solid var(--line);}
+  .photo-preview img{width:56px; height:56px; object-fit:cover; border-radius:7px; border:1px solid var(--line); cursor:pointer;}
 
   .card-actions{display:flex; justify-content:flex-end; gap:12px; margin-top:10px; padding-top:10px; border-top:1px solid var(--line);}
   .card-actions button{background:none; border:none; color:var(--ink-soft); font-size:12px; font-weight:700; display:flex; align-items:center; gap:4px;}
@@ -355,6 +368,38 @@
   .confirm-sheet{max-width:360px;}
   .confirm-message{font-size:14.5px; line-height:1.6; color:var(--ink); margin:0 0 20px; white-space:pre-line;}
   .btn-confirm.danger-confirm{background:var(--danger);}
+
+  /* ===== 開啟軟體自動彈出：本月抄錶提醒 ===== */
+  .startup-reminder-sheet{max-width:440px;}
+  .startup-announce-box{
+    background:#f3f6fb; border-radius:12px; padding:12px 14px; margin-bottom:14px;
+    display:flex; align-items:flex-start; gap:10px; justify-content:space-between;
+  }
+  .startup-announce-text{font-size:14px; line-height:1.6; color:var(--ink); white-space:pre-line; flex:1;}
+  .startup-announce-text.is-placeholder{color:var(--ink-soft);}
+  .startup-announce-edit{
+    flex:0 0 auto; border:none; background:transparent; color:var(--navy-800); font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap;
+  }
+  .startup-announce-edit-row{margin-bottom:14px;}
+  .startup-announce-input{
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:14px;
+    outline:none; background:#fbfcfe; resize:vertical; font-family:inherit; margin-bottom:10px; box-sizing:border-box;
+  }
+  .startup-announce-input:focus{border-color:var(--navy-800);}
+  .startup-pending-summary{font-size:13.5px; font-weight:700; color:var(--ink-soft); margin-bottom:8px;}
+  .startup-pending-list{max-height:240px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; margin-bottom:14px;}
+  .startup-pending-item{
+    display:flex; align-items:center; gap:10px; width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    background:#fbfcfe; text-align:left; cursor:pointer; font-size:14px; font-weight:600; color:var(--ink);
+  }
+  .startup-pending-item:hover{background:#f0f3f8;}
+  .startup-pending-item .mi-ic{font-size:16px; width:20px; text-align:center; flex:0 0 auto;}
+  .startup-skip-today{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-soft); margin-bottom:6px; cursor:pointer;}
+  body.dark-mode .startup-announce-box{background:#1b243a;}
+  body.dark-mode .startup-announce-edit{color:var(--gold);}
+  body.dark-mode .startup-announce-input{background:#0f1626; border-color:#2a3552; color:var(--ink);}
+  body.dark-mode .startup-pending-item{background:#0f1626; border-color:#2a3552; color:var(--ink);}
+  body.dark-mode .startup-pending-item:hover{background:#182035;}
 
   /* ===== 自訂日期選擇器（取代瀏覽器原生 input type=date） ===== */
   .cal-sheet{max-width:360px;}
@@ -497,6 +542,36 @@
   .donut-row .dot{width:9px; height:9px; border-radius:50%; flex:0 0 auto;}
   .donut-row .pct{margin-left:auto; color:var(--ink-soft); font-weight:800;}
 
+  /* ===== 儀表進位補正 ===== */
+  .carry-btn{background:#e8f1ff; color:var(--blue-tag);}
+  .carry-sheet{max-width:400px;}
+  .carry-site-info{font-size:13.5px; font-weight:700; color:var(--ink-soft); margin:-8px 0 14px;}
+  .carry-row{margin-bottom:14px;}
+  .carry-label{font-size:12px; font-weight:700; color:var(--ink-soft); margin-bottom:6px; display:block; letter-spacing:.3px;}
+  .carry-prev-box{
+    background:#f3f4f7; border:1px solid var(--line); border-radius:10px;
+    padding:12px; font-size:20px; font-weight:800; color:#3a4152; text-align:center;
+  }
+  .carry-input{
+    width:100%; box-sizing:border-box; border:2px solid var(--blue-tag); border-radius:10px; background:#fff;
+    padding:12px; font-size:20px; font-weight:800; color:var(--ink); outline:none; text-align:center;
+  }
+  .carry-input:focus{box-shadow:0 0 0 3px rgba(47,123,246,.15);}
+  .carry-badge{
+    display:none; align-items:center; gap:5px; margin-top:8px;
+    font-size:12px; font-weight:700; padding:7px 10px; border-radius:9px;
+    background:#fff3cd; color:#8a6d00; border:1px solid #ffe9a8;
+  }
+  .carry-badge.show{display:flex;}
+  .carry-result{background:var(--navy-900); color:#fff; border-radius:14px; padding:16px; margin-top:4px;}
+  .carry-result-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:11.5px; color:rgba(255,255,255,.6); font-weight:700; letter-spacing:.5px;}
+  .carry-result-top .carry-usage{background:var(--blue-tag); color:#fff; border-radius:20px; padding:2px 10px; font-size:11.5px;}
+  .carry-result-value{font-size:28px; font-family:monospace; font-weight:900; color:#5fd0f0; text-align:center;}
+  .carry-result-hint{margin-top:8px; font-size:11px; color:rgba(255,255,255,.5); line-height:1.5;}
+  body.dark-mode .carry-prev-box{background:#1a2337; color:var(--ink); border-color:#2a3550;}
+  body.dark-mode .carry-input{background:#1a2337; color:var(--ink);}
+  body.dark-mode .carry-btn{background:rgba(47,123,246,.18); color:#7aa8ff;}
+
   /* ===== 深色模式 ===== */
   body.dark-mode{
     --bg:#0a1120; --card:#141c2e; --ink:#eef1f6; --ink-soft:#8b93a8; --line:#26304a;
@@ -581,6 +656,7 @@
     .control-panel{padding:6px; gap:8px;}
     .month-select{padding:11px 10px;}
     .month-select select{max-width:88px;}
+    .month-select .month-input{width:96px;}
     .date-input{padding:0 10px; font-size:14px;}
   }
 
@@ -766,7 +842,7 @@
   <div class="control-panel">
     <div class="month-select">
       <span>📅</span>
-      <select id="monthSelect"></select>
+      <input type="month" id="monthSelect" class="month-input">
     </div>
     <div class="divider-v"></div>
     <div class="date-group">
@@ -780,7 +856,9 @@
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
     <input class="search-input" id="searchBox" placeholder="搜尋店名、編號 or 位置...">
+    <button type="button" class="search-scan-btn" id="scanBarcodeBtn" title="拍照掃描條碼搜尋">📷</button>
   </div>
+  <input type="file" id="barcodeScanInput" accept="image/*" capture="environment" style="display:none">
 
   <div class="summary-bar">
     <div class="summary-item water"><div class="lbl">水(度)</div><div class="val" id="sumWater">0.0</div></div>
@@ -935,6 +1013,15 @@
       <button type="button" class="menu-item" id="mImportJson">
         <span class="mi-ic">📥</span>
         <span class="mi-label">匯入備份還原<span class="mi-sub">從先前匯出的檔案還原資料</span></span>
+        <span class="mi-chev">›</span>
+      </button>
+    </div>
+
+    <div class="menu-section">
+      <div class="menu-section-title">提醒與公告</div>
+      <button type="button" class="menu-item" id="mStartupReminder">
+        <span class="mi-ic">📢</span>
+        <span class="mi-label">本月抄錶提醒<span class="mi-sub">查看/編輯公告，並列出本月尚未抄錄的站點</span></span>
         <span class="mi-chev">›</span>
       </button>
     </div>
@@ -1113,6 +1200,39 @@
   </div>
 </div>
 
+<!-- 儀表進位補正：本期實體讀數小於上期時，自動計算歸零進位後應寫入的累計值 -->
+<div class="overlay" id="carryOverlay">
+  <div class="sheet carry-sheet">
+    <h2>🔄 儀表進位補正</h2>
+    <div class="carry-site-info" id="carrySiteInfo"></div>
+
+    <div class="carry-row">
+      <label class="carry-label">上期度數（資料庫記錄）</label>
+      <div class="carry-prev-box" id="carryPrevVal">0</div>
+    </div>
+
+    <div class="carry-row">
+      <label class="carry-label">本期實體讀數（錶面顯示的數字）</label>
+      <input type="number" inputmode="decimal" id="carryNowInput" class="carry-input" placeholder="輸入錶面讀數">
+      <div class="carry-badge" id="carryBadge">⚠️ 偵測到錶盤歸零：將自動進位補正</div>
+    </div>
+
+    <div class="carry-result">
+      <div class="carry-result-top">
+        <span>預計補正匯入值</span>
+        <span class="carry-usage" id="carryUsageTag">用量：--</span>
+      </div>
+      <div class="carry-result-value" id="carryPreviewValue">--</div>
+      <div class="carry-result-hint">確認匯入後將覆蓋本期讀數，下個月會自動變成新的上期。</div>
+    </div>
+
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="carryCancelBtn">取消</button>
+      <button class="btn-confirm" id="carryConfirmBtn">確認匯入</button>
+    </div>
+  </div>
+</div>
+
 <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
 <div class="toast" id="toast"></div>
 <div id="printReportArea"></div>
@@ -1139,6 +1259,41 @@
   </div>
 </div>
 
+<!-- 開啟軟體時自動彈出：本月抄錶提醒（公告 + 尚未抄錄站點清單） -->
+<div class="overlay" id="startupReminderOverlay" style="z-index:280;">
+  <div class="sheet startup-reminder-sheet">
+    <h2>📢 <span id="startupReminderMonthLabel"></span>抄錶提醒</h2>
+
+    <div class="startup-announce-box" id="startupAnnounceBox">
+      <div class="startup-announce-text" id="startupAnnounceText"></div>
+      <button type="button" class="startup-announce-edit" id="startupAnnounceEditBtn">✏️ 編輯公告</button>
+    </div>
+
+    <div class="startup-announce-edit-row" id="startupAnnounceEditRow" style="display:none;">
+      <textarea id="startupAnnounceInput" class="startup-announce-input" rows="3" placeholder="輸入提醒訊息或公告，下次開啟軟體會顯示在這裡…"></textarea>
+      <div class="sheet-actions">
+        <button type="button" class="btn-cancel" id="startupAnnounceCancelBtn">取消</button>
+        <button type="button" class="btn-confirm" id="startupAnnounceSaveBtn">儲存公告</button>
+      </div>
+    </div>
+
+    <div class="startup-pending-summary" id="startupPendingSummary"></div>
+    <div class="startup-pending-list" id="startupPendingList"></div>
+
+    <label class="startup-skip-today">
+      <input type="checkbox" id="startupSkipTodayChk"> 今天不再自動提醒
+    </label>
+
+    <div class="sheet-actions">
+      <button type="button" class="btn-confirm" id="startupReminderCloseBtn">知道了</button>
+    </div>
+  </div>
+</div>
+
+<!-- 條碼／QR Code 辨識函式庫（ZXing，vendor/zxing.min.js）：實測本機 WebView2
+     並未內建 BarcodeDetector API，改用這套純 JS 函式庫離線辨識，同時涵蓋
+     常見直條碼（Code128/EAN/UPC...）與 QR Code。 -->
+<script src="vendor/zxing.min.js"></script>
 <script>
 (function(){
   "use strict";
@@ -1404,6 +1559,115 @@
     document.getElementById("confirmOverlay").classList.remove("open");
     pendingConfirmCallback = null;
   });
+
+  // ---- 開啟軟體時彈出：本月抄錶提醒（公告 + 尚未抄錄站點清單） ----
+  // 公告文字存在 localStorage，使用者自己編輯、下次開軟體時顯示；
+  // 「今天不再自動提醒」也存日期字串，同一天內重開軟體不會一直跳出來煩人，
+  // 但仍可從系統選單手動叫出來看。
+  const ANNOUNCE_KEY = "bitan_announcement";
+  const STARTUP_SKIP_KEY = "bitan_startup_reminder_skip_date";
+
+  function todayStr(){
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+  }
+
+  function getUnreadSitesForMonth(monthKey){
+    const readings = loadReadings(monthKey);
+    return sites.filter(s=>{
+      const r = readings[s.id];
+      return !r || r.curr===undefined || r.curr===null || r.curr==="";
+    }).slice().sort((a,b)=>(a.group||"").localeCompare(b.group||"", "zh-Hant", {numeric:true}));
+  }
+
+  function renderStartupAnnounce(){
+    const text = (localStorage.getItem(ANNOUNCE_KEY) || "").trim();
+    const box = document.getElementById("startupAnnounceText");
+    box.textContent = text || "尚未設定公告，點右側「編輯公告」新增提醒事項，下次開啟軟體會顯示在這裡。";
+    box.classList.toggle("is-placeholder", !text);
+  }
+
+  function renderStartupPendingList(){
+    const unread = getUnreadSitesForMonth(currentMonthKey);
+    const [y,m] = currentMonthKey.split("-");
+    document.getElementById("startupReminderMonthLabel").textContent = `${y}年${Number(m)}月`;
+    const summaryEl = document.getElementById("startupPendingSummary");
+    const listEl = document.getElementById("startupPendingList");
+    if(sites.length===0){
+      summaryEl.textContent = "目前尚未新增任何站點";
+      listEl.innerHTML = "";
+      return;
+    }
+    if(unread.length===0){
+      summaryEl.textContent = `🎉 本月 ${sites.length} 個站點皆已抄錄完成`;
+      listEl.innerHTML = "";
+      return;
+    }
+    summaryEl.textContent = `本月共 ${sites.length} 個站點，尚有 ${unread.length} 個未抄錄：`;
+    listEl.innerHTML = unread.map(s=>{
+      const meta = TYPE_META[s.type];
+      return `<button type="button" class="startup-pending-item" data-siteid="${escapeHtml(s.id)}">
+        <span class="mi-ic">${meta.icon}</span>
+        <span class="startup-pending-name">${escapeHtml(s.group||"")} ${escapeHtml(s.site)}</span>
+      </button>`;
+    }).join("");
+  }
+
+  function openStartupReminder(){
+    renderStartupAnnounce();
+    renderStartupPendingList();
+    document.getElementById("startupAnnounceEditRow").style.display = "none";
+    document.getElementById("startupAnnounceBox").style.display = "";
+    document.getElementById("startupSkipTodayChk").checked = false;
+    document.getElementById("startupReminderOverlay").classList.add("open");
+  }
+
+  function maybeAutoShowStartupReminder(){
+    if(localStorage.getItem(STARTUP_SKIP_KEY) === todayStr()) return;
+    openStartupReminder();
+  }
+
+  document.getElementById("startupAnnounceEditBtn").addEventListener("click", ()=>{
+    document.getElementById("startupAnnounceInput").value = localStorage.getItem(ANNOUNCE_KEY) || "";
+    document.getElementById("startupAnnounceBox").style.display = "none";
+    document.getElementById("startupAnnounceEditRow").style.display = "";
+    document.getElementById("startupAnnounceInput").focus();
+  });
+  document.getElementById("startupAnnounceCancelBtn").addEventListener("click", ()=>{
+    document.getElementById("startupAnnounceEditRow").style.display = "none";
+    document.getElementById("startupAnnounceBox").style.display = "";
+  });
+  document.getElementById("startupAnnounceSaveBtn").addEventListener("click", ()=>{
+    const val = document.getElementById("startupAnnounceInput").value.trim();
+    if(val) localStorage.setItem(ANNOUNCE_KEY, val);
+    else localStorage.removeItem(ANNOUNCE_KEY);
+    renderStartupAnnounce();
+    document.getElementById("startupAnnounceEditRow").style.display = "none";
+    document.getElementById("startupAnnounceBox").style.display = "";
+    showToast("公告已儲存");
+  });
+
+  document.getElementById("startupPendingList").addEventListener("click", (e)=>{
+    const btn = e.target.closest(".startup-pending-item");
+    if(!btn) return;
+    const site = sites.find(s=>s.id===btn.dataset.siteid);
+    if(!site) return;
+    document.getElementById("startupReminderOverlay").classList.remove("open");
+    const searchBoxEl = document.getElementById("searchBox");
+    searchBoxEl.value = site.site;
+    searchBoxEl.dispatchEvent(new Event("input", {bubbles:true}));
+  });
+
+  const startupReminderOverlay = document.getElementById("startupReminderOverlay");
+  document.getElementById("startupReminderCloseBtn").addEventListener("click", ()=>{
+    if(document.getElementById("startupSkipTodayChk").checked){
+      localStorage.setItem(STARTUP_SKIP_KEY, todayStr());
+    }
+    startupReminderOverlay.classList.remove("open");
+  });
+  startupReminderOverlay.addEventListener("click", e=>{
+    if(e.target===startupReminderOverlay) startupReminderOverlay.classList.remove("open");
+  });
   document.getElementById("confirmOverlay").addEventListener("click", e=>{
     if(e.target.id === "confirmOverlay"){
       e.currentTarget.classList.remove("open");
@@ -1461,28 +1725,17 @@
   }
 
   // ---- Month select ----
+  // input[type=month] 的 value 格式本來就是「YYYY-MM」，跟 monthKey 完全一致，
+  // 且不受年份限制（可直接輸入數字快速跳月，或用瀏覽器原生月曆挑選/搜尋任何年份）。
   function buildMonthOptions(){
-    const sel = document.getElementById("monthSelect");
-    sel.innerHTML = "";
+    const inp = document.getElementById("monthSelect");
     const now = new Date();
-    const options = [];
-    // 自動偵測當年年份，產生該年 1~12 月完整清單
-    const y = now.getFullYear();
-    for(let m=1; m<=12; m++){
-      options.push(y + "-" + String(m).padStart(2,"0"));
-    }
-    options.forEach(key=>{
-      const opt = document.createElement("option");
-      opt.value = key;
-      const [yy,mm] = key.split("-");
-      opt.textContent = `${yy}-${mm}月`;
-      sel.appendChild(opt);
-    });
     const defaultKey = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0");
-    sel.value = defaultKey;
+    inp.value = defaultKey;
     currentMonthKey = defaultKey;
-    sel.addEventListener("change", ()=>{
-      currentMonthKey = sel.value;
+    inp.addEventListener("change", ()=>{
+      if(!inp.value) { inp.value = currentMonthKey; return; }
+      currentMonthKey = inp.value;
       render();
     });
   }
@@ -1527,8 +1780,6 @@
       (a.group||"").localeCompare(b.group||"", "zh-Hant", {numeric:true})
     );
 
-    list.innerHTML = "";
-
     if(filtered.length === 0){
       list.innerHTML = `<div class="empty-state">
         <div class="emoji">📭</div>
@@ -1539,18 +1790,57 @@
       updateSummary(readings);
       return;
     }
+    // 上一次是空狀態畫面時才需要整個清空；正常情況下改用底下的「保留可重用卡片」邏輯，
+    // 不再無條件 list.innerHTML="" 整批砍掉重建，避免每次搜尋/更新都讓畫面閃一下。
+    if(list.querySelector(".empty-state")) list.innerHTML = "";
+
+    // ---- 防閃頻：重用既有卡片 DOM，只有「內容真的變了」或「這張卡是新的」才重寫，
+    // 使用者正在該卡片輸入中（例如打讀數、修正上期）時完全跳過重建，避免失焦或畫面閃爍 ----
+    const existingCards = new Map();
+    list.querySelectorAll(".meter-card[data-site-id]").forEach(el=>existingCards.set(el.dataset.siteId, el));
+
+    // 只有「DOM 目前位置」跟「排序後應該在的位置」不同時才搬動節點；appendChild/insertBefore
+    // 移動既有節點在規格上一定會先斷開再插入，就算視覺位置沒變也一樣——如果剛好動到使用者正在
+    // 輸入的欄位，就算節點本體沒被砍掉重建，也會因為這一瞬間「斷開」而被瀏覽器判定失焦。
+    // 所以位置沒變就完全不呼叫 insertBefore，才能真正保住輸入中的焦點。
+    function placeCardAt(card, index){
+      if(list.children[index] !== card){
+        list.insertBefore(card, list.children[index] || null);
+      }
+    }
 
     const digitLimits = getDigitLimits();
-    filtered.forEach(site=>{
+    filtered.forEach((site, index)=>{
       const meta = TYPE_META[site.type];
       const digitLimit = digitLimits[site.type] || 5;
       const prevVal = getPrevValue(site);
       const r = readings[site.id] || {curr:"", photos:[]};
       const currVal = r.curr;
       const usage = (currVal !== "" && currVal !== undefined) ? (parseFloat(currVal) - prevVal) : null;
+      const photoSig = (r.photos||[]).map(p=>p.id).join(",");
+      const sig = [site.group, site.site, site.location, site.meterNo, site.type, digitLimit, prevVal, currVal, usage, photoSig].join("|");
 
-      const card = document.createElement("div");
+      let card = existingCards.get(site.id);
+      if(card) existingCards.delete(site.id);
+
+      if(card && card.contains(document.activeElement)){
+        // 使用者正在這張卡片裡輸入（讀數 / 修正上期等），跳過重建：
+        // 內容同步交給 updateUsageDisplay / updateInputWarningUI 局部更新即可
+        placeCardAt(card, index);
+        return;
+      }
+      if(card && card.dataset.sig === sig){
+        // 這張卡片顯示內容完全沒變，重用既有 DOM（只在位置真的變了才搬動），不重寫、不觸發重繪閃爍
+        placeCardAt(card, index);
+        return;
+      }
+
+      if(!card){
+        card = document.createElement("div");
+        card.dataset.siteId = site.id;
+      }
       card.className = "meter-card " + meta.cls;
+      card.dataset.sig = sig;
       card.innerHTML = `
         <div class="card-top">
           <div>
@@ -1574,7 +1864,9 @@
             <div class="prev-field" id="prevField_${site.id}">${formatNum(prevVal)}</div>
           </div>
           <div>
-            <div class="field-label"><span>本期 (限${digitLimit}位)</span></div>
+            <div class="field-label"><span>本期 (限${digitLimit}位)</span>
+              <button class="lock-btn carry-btn" data-carry="${site.id}">🔄 進位補正</button>
+            </div>
             <div class="curr-field" id="currFieldWrap_${site.id}">
               <input type="number" inputmode="decimal" maxlength="${digitLimit}" data-curr="${site.id}" data-limit="${digitLimit}"
                 value="${currVal!==undefined ? currVal : ''}" placeholder="輸入讀數">
@@ -1587,73 +1879,66 @@
           <button class="photo-btn" data-photo="${site.id}">📷 拍攝照片</button>
           <button class="daily-log-btn" data-dailylog="${site.id}">📅 每日記錄</button>
         </div>
-        <div class="photo-preview" id="photoPreview_${site.id}"></div>
+        <div class="photo-preview" id="photoPreview_${site.id}">${(r.photos||[]).map(p=>`<img src="${escapeHtml(p.url)}" data-photo-view="${escapeHtml(p.url)}">`).join("")}</div>
 
         <div class="card-actions">
           <button data-del="${site.id}" class="danger">🗑 刪除站點</button>
         </div>
       `;
-      list.appendChild(card);
+      placeCardAt(card, index);
       updateInputWarningUI(site.id, prevVal, currVal);
-
-      if(r.photos && r.photos.length){
-        const pv = card.querySelector(`#photoPreview_${site.id}`);
-        r.photos.forEach(photo=>{
-          const img = document.createElement("img");
-          img.src = photo.url;
-          img.style.cursor = "pointer";
-          img.addEventListener("click", ()=>openPhotoViewer(photo.url));
-          pv.appendChild(img);
-        });
-      }
     });
 
-    // bind events
-    list.querySelectorAll("[data-curr]").forEach(inp=>{
-      inp.addEventListener("input", ()=>{
-        const limit = parseInt(inp.dataset.limit, 10) || 5;
-        if(inp.value.length>limit) inp.value = inp.value.slice(0,limit);
-        const id = inp.dataset.curr;
-        const readings2 = loadReadings(currentMonthKey);
-        if(!readings2[id]) readings2[id] = {curr:"", photos:[]};
-        readings2[id].curr = inp.value;
-        scheduleSaveCurrValue(id, currentMonthKey, inp.value);
-        updateUsageDisplay(id, inp.value);
-        updateSummary(readings2);
-        const site2 = sites.find(s=>s.id===id);
-        if(site2) updateInputWarningUI(id, getPrevValue(site2), inp.value);
-      });
-    });
-    list.querySelectorAll("[data-edit]").forEach(a=>{
-      a.addEventListener("click", e=>{ e.preventDefault(); openEditSheet(a.dataset.edit); });
-    });
-    list.querySelectorAll("[data-del]").forEach(btn=>{
-      btn.addEventListener("click", ()=>{ deleteSite(btn.dataset.del); });
-    });
-    list.querySelectorAll("[data-unlock]").forEach(btn=>{
-      btn.addEventListener("click", ()=>{ unlockPrev(btn.dataset.unlock, btn); });
-    });
-    list.querySelectorAll("[data-swap]").forEach(btn=>{
-      btn.addEventListener("click", (e)=>{ e.stopPropagation(); openTypePicker(btn.dataset.swap); });
-    });
-    list.querySelectorAll("[data-photo]").forEach(btn=>{
-      btn.addEventListener("click", ()=>{
-        currentPhotoTargetId = btn.dataset.photo;
-        document.getElementById("cameraInput").click();
-      });
-    });
-    list.querySelectorAll("[data-dailylog]").forEach(btn=>{
-      btn.addEventListener("click", ()=>{ openDailyLogSheet(btn.dataset.dailylog); });
-    });
+    // 清掉不再屬於篩選結果的舊卡片（搜尋篩掉、或站點被刪除）
+    existingCards.forEach(el=>el.remove());
 
     updateSummary(readings);
   }
+
+  // ---- 卡片列表事件代理：只在頁面載入時綁定一次，不隨 render() 重建/重用卡片而失效，
+  // 這樣 render() 才能安心重用既有卡片 DOM（防閃頻的關鍵前提）----
+  (function setupCardListDelegation(){
+    const list = document.getElementById("cardList");
+    list.addEventListener("input", e=>{
+      const inp = e.target.closest("[data-curr]");
+      if(!inp) return;
+      const limit = parseInt(inp.dataset.limit, 10) || 5;
+      if(inp.value.length>limit) inp.value = inp.value.slice(0,limit);
+      const id = inp.dataset.curr;
+      const readings2 = loadReadings(currentMonthKey);
+      if(!readings2[id]) readings2[id] = {curr:"", photos:[]};
+      readings2[id].curr = inp.value;
+      scheduleSaveCurrValue(id, currentMonthKey, inp.value);
+      updateUsageDisplay(id, inp.value);
+      updateSummary(readings2);
+      const site2 = sites.find(s=>s.id===id);
+      if(site2) updateInputWarningUI(id, getPrevValue(site2), inp.value);
+    });
+    list.addEventListener("click", e=>{
+      const editEl = e.target.closest("[data-edit]");
+      if(editEl){ e.preventDefault(); openEditSheet(editEl.dataset.edit); return; }
+      const delEl = e.target.closest("[data-del]");
+      if(delEl){ deleteSite(delEl.dataset.del); return; }
+      const unlockEl = e.target.closest("[data-unlock]");
+      if(unlockEl){ unlockPrev(unlockEl.dataset.unlock, unlockEl); return; }
+      const carryEl = e.target.closest("[data-carry]");
+      if(carryEl){ openCarrySheet(carryEl.dataset.carry); return; }
+      const swapEl = e.target.closest("[data-swap]");
+      if(swapEl){ e.stopPropagation(); openTypePicker(swapEl.dataset.swap); return; }
+      const photoBtnEl = e.target.closest("[data-photo]");
+      if(photoBtnEl){ currentPhotoTargetId = photoBtnEl.dataset.photo; document.getElementById("cameraInput").click(); return; }
+      const dailylogEl = e.target.closest("[data-dailylog]");
+      if(dailylogEl){ openDailyLogSheet(dailylogEl.dataset.dailylog); return; }
+      const photoImgEl = e.target.closest("[data-photo-view]");
+      if(photoImgEl){ openPhotoViewer(photoImgEl.dataset.photoView); return; }
+    });
+  })();
 
   function updateUsageDisplay(siteId, currStr){
     const site = sites.find(s=>s.id===siteId);
     if(!site) return;
     const prevVal = getPrevValue(site);
-    const card = [...document.querySelectorAll(".meter-card")].find(c=>c.querySelector(`[data-curr="${siteId}"]`));
+    const card = document.querySelector(`.meter-card[data-site-id="${siteId}"]`);
     if(!card) return;
     const usageEl = card.querySelector(".usage-box .val");
     if(currStr === ""){
@@ -1742,6 +2027,96 @@
       showToast("上期讀數已更新");
     });
   }
+
+  // ---- 儀表進位補正：本期實體讀數 < 上期餘數時代表錶盤已歸零翻轉，自動加回進位 ----
+  let carryTargetId = null;
+  function updateCarryPreview(){
+    if(!carryTargetId) return null;
+    const site = sites.find(s=>s.id===carryTargetId);
+    if(!site) return null;
+    const digitLimit = getDigitLimits()[site.type] || 5;
+    const maxVal = Math.pow(10, digitLimit);
+    const prevVal = getPrevValue(site);
+    const nowStr = document.getElementById("carryNowInput").value;
+    const previewEl = document.getElementById("carryPreviewValue");
+    const usageTag = document.getElementById("carryUsageTag");
+    const badge = document.getElementById("carryBadge");
+
+    if(nowStr === "" || isNaN(parseFloat(nowStr))){
+      previewEl.textContent = "--";
+      usageTag.textContent = "用量：--";
+      badge.classList.remove("show");
+      return null;
+    }
+
+    const now = parseFloat(nowStr);
+    const lastRemainder = prevVal % maxVal;
+    let finalImport, isOverroll;
+    if(now < lastRemainder){
+      const currentCarry = Math.floor(prevVal / maxVal);
+      finalImport = ((currentCarry + 1) * maxVal) + now;
+      isOverroll = true;
+    }else{
+      const base = Math.floor(prevVal / maxVal) * maxVal;
+      finalImport = base + now;
+      isOverroll = false;
+    }
+
+    previewEl.textContent = formatNum(finalImport);
+    usageTag.textContent = `用量：${formatNum(finalImport - prevVal)}`;
+    badge.classList.toggle("show", isOverroll);
+    return finalImport;
+  }
+
+  function openCarrySheet(siteId){
+    const site = sites.find(s=>s.id===siteId);
+    if(!site) return;
+    carryTargetId = siteId;
+    const meta = TYPE_META[site.type];
+    const digitLimit = getDigitLimits()[site.type] || 5;
+    const prevVal = getPrevValue(site);
+
+    document.getElementById("carrySiteInfo").textContent = `${meta.icon} ${site.site}（限${digitLimit}位）`;
+    document.getElementById("carryPrevVal").textContent = formatNum(prevVal);
+    const nowInput = document.getElementById("carryNowInput");
+    nowInput.value = "";
+    nowInput.maxLength = digitLimit;
+    updateCarryPreview();
+    document.getElementById("carryOverlay").classList.add("open");
+    nowInput.focus();
+  }
+
+  function closeCarrySheet(){
+    document.getElementById("carryOverlay").classList.remove("open");
+    carryTargetId = null;
+  }
+
+  function applyCarryImport(){
+    const finalImport = updateCarryPreview();
+    if(finalImport === null){
+      showToast("請先輸入本期實體讀數");
+      return;
+    }
+    const siteId = carryTargetId;
+    const input = document.querySelector(`[data-curr="${siteId}"]`);
+    if(input){
+      input.value = finalImport;
+      input.dispatchEvent(new Event("input", {bubbles:true}));
+    }
+    closeCarrySheet();
+    showToast("已補正匯入本期讀數");
+  }
+
+  document.getElementById("carryNowInput").addEventListener("input", e=>{
+    const digitLimit = e.target.maxLength;
+    if(digitLimit>0 && e.target.value.length>digitLimit) e.target.value = e.target.value.slice(0,digitLimit);
+    updateCarryPreview();
+  });
+  document.getElementById("carryConfirmBtn").addEventListener("click", applyCarryImport);
+  document.getElementById("carryCancelBtn").addEventListener("click", closeCarrySheet);
+  document.getElementById("carryOverlay").addEventListener("click", e=>{
+    if(e.target.id === "carryOverlay") closeCarrySheet();
+  });
 
   let currentTypeTargetId = null;
   function openTypePicker(siteId){
@@ -2479,6 +2854,11 @@
     syncDarkToggleUI();
   });
   applyDarkMode(localStorage.getItem(DARK_KEY) === "1");
+
+  document.getElementById("mStartupReminder").addEventListener("click", ()=>{
+    menuOverlay.classList.remove("open");
+    openStartupReminder();
+  });
 
   // ---- 新增站點必填欄位設定（所有欄位預設都不強制必填，完全交給系統選單開關決定） ----
   const REQUIRED_FIELDS_KEY = "bitan_required_fields";
@@ -3261,8 +3641,54 @@
   });
 
   // ---- Search ----
-  document.getElementById("searchBox").addEventListener("input", render);
+  // 打字時輕微防抖動再觸發 render()，避免連續按鍵瞬間多次整批比對/排序造成的閃爍感；
+  // render() 本身也已改成重用既有卡片 DOM，這裡是雙重保險。
+  let searchRenderTimer = null;
+  document.getElementById("searchBox").addEventListener("input", ()=>{
+    clearTimeout(searchRenderTimer);
+    searchRenderTimer = setTimeout(render, 120);
+  });
   enableSelectAllOnClick(document.getElementById("searchBox"));
+
+  // ---- 拍照掃描條碼搜尋：用 ZXing（vendor/zxing.min.js）離線辨識照片裡的條碼
+  // 或 QR Code，辨識到的內容直接帶入搜尋框，套用原本就有的搜尋篩選（免手動輸入店號）----
+  let zxingReader = null;
+  async function detectBarcodeInFile(file){
+    if(!(window.ZXing && window.ZXing.BrowserMultiFormatReader)) return {ok:false, reason:"unsupported"};
+    if(!zxingReader) zxingReader = new ZXing.BrowserMultiFormatReader();
+    const url = URL.createObjectURL(file);
+    try{
+      const result = await zxingReader.decodeFromImageUrl(url);
+      return {ok:true, value: result.getText()};
+    }catch(e){
+      return {ok:false, reason:"notfound"};
+    }finally{
+      URL.revokeObjectURL(url);
+    }
+  }
+  document.getElementById("scanBarcodeBtn").addEventListener("click", ()=>{
+    document.getElementById("barcodeScanInput").click();
+  });
+  document.getElementById("barcodeScanInput").addEventListener("change", async e=>{
+    const file = e.target.files[0];
+    e.target.value = "";
+    if(!file) return;
+    const btn = document.getElementById("scanBarcodeBtn");
+    btn.classList.add("busy");
+    showToast("辨識條碼中…");
+    const result = await detectBarcodeInFile(file);
+    btn.classList.remove("busy");
+    if(result.ok){
+      const searchBoxEl = document.getElementById("searchBox");
+      searchBoxEl.value = result.value;
+      searchBoxEl.dispatchEvent(new Event("input", {bubbles:true}));
+      showToast(`已辨識條碼：${result.value}`);
+    }else if(result.reason === "unsupported"){
+      showToast("此電腦環境不支援條碼辨識，請改用手動搜尋");
+    }else{
+      showToast("沒有偵測到條碼，請對準條碼後再試一次");
+    }
+  });
 
   // ---- Save all（強制送出所有還在防抖動等待中的本期讀數）----
   document.getElementById("saveAllBtn").addEventListener("click", ()=>{
@@ -3580,7 +4006,7 @@
       showToast(e.message || "載入資料失敗，請重新整理頁面");
     }finally{
       const minShow = 550;
-      setTimeout(hideSplash, Math.max(0, minShow - (Date.now() - splashStart)));
+      setTimeout(()=>{ hideSplash(); maybeAutoShowStartupReminder(); }, Math.max(0, minShow - (Date.now() - splashStart)));
       checkPendingUpdateResult();
       checkDesktopUpdate();
       updateMenuVersionLine();
